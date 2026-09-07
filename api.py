@@ -344,7 +344,7 @@ def root():
 
 # ---------- Static Frontend Serving & App Switchers ----------
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 if os.path.exists("frontend"):
     app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
@@ -362,6 +362,25 @@ def serve_command():
     if os.path.exists("frontend/index.html"):
         return FileResponse("frontend/index.html")
     return {"message": "Command center ready"}
+
+
+@app.get("/download-apk")
+@app.get("/api/download-apk")
+def download_apk():
+    # If APK exists locally, serve it directly
+    local_apk_paths = ["sentinel-citizen.apk", "build_output/sentinel-citizen.apk", "android/app/build/outputs/apk/debug/app-debug.apk"]
+    for path in local_apk_paths:
+        if os.path.exists(path):
+            return FileResponse(
+                path,
+                media_type="application/vnd.android.package-archive",
+                filename="sentinel-citizen.apk"
+            )
+    # Otherwise redirect to the GitHub Release / CI build download
+    return RedirectResponse(
+        url="https://github.com/khushraj11/landslide-warning-system/releases/latest/download/sentinel-citizen.apk",
+        status_code=302
+    )
 
 
 # ---------- v1 Compatibility Endpoints (Eliminates 404s for React / Vite apps) ----------
