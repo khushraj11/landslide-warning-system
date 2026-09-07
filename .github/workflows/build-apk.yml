@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -18,7 +21,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -27,17 +29,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
-      - name: Install Dependencies & Prepare Android Platform
+      - name: Sync Capacitor Web Assets
         run: |
-          npm ci || npm install
-          npx cap add android
+          npm install
           npx cap sync android
-
-      - name: Inject Android Permissions
-        run: |
-          sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="true" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />' android/app/src/main/AndroidManifest.xml
 
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
@@ -59,3 +55,14 @@ jobs:
           name: sentinel-citizen-apk
           path: build_output/sentinel-citizen.apk
           retention-days: 30
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0
+          name: "SENTINEL Citizen Android APK v1.0.0"
+          body: "Official Android APK build for SENTINEL Citizen Landslide Early Warning & Navigation System."
+          files: build_output/sentinel-citizen.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

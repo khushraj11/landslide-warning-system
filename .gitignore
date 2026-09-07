@@ -35,8 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # Android / Mobile Builds
-android/
+android/.gradle/
 android/app/build/
+android/build/
 *.apk
 *.aab
 

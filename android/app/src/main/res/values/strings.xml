@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SENTINEL Citizen</string>
+    <string name="title_activity_main">SENTINEL Citizen</string>
+    <string name="package_name">org.sentinel.disaster.citizen</string>
+    <string name="custom_url_scheme">org.sentinel.disaster.citizen</string>
+</resources>
