@@ -1,0 +1,11 @@
+timestamp,district,latitude,longitude,description,urgency,official_verified,official_notes
+2026-09-06 00:28:07,Agartala,23.833847559621404,91.28410249543175,,Routine,,
+2026-09-08 00:15:42,Cherrapunji,25.3,91.7,[NEED_IMMEDIATE_RESCUE via INTERNET_DIRECT] Landslide debris blocked house entrance,Urgent,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 00:15:50,Gangtok,27.3389,88.6065,[REPORT_SAFE via OFFLINE_STORE_AND_FORWARD_SYNC] Safe at primary shelter after evacuation,Routine,PENDING,Channel: OFFLINE_STORE_AND_FORWARD_SYNC | Fast2SMS: Simulated
+2026-09-08 00:24:26,Gangtok,31.2487,75.7876,[REPORT_SAFE via INTERNET_DIRECT] Citizen checked in as SAFE in designated mountain zone.,Routine,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 00:28:26,Gangtok,31.248521031889062,75.70719947117128,"[NEED_IMMEDIATE_RESCUE via INTERNET_DIRECT] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 00:28:27,Gangtok,31.248521031889062,75.70719947117128,"[NEED_IMMEDIATE_RESCUE via INTERNET_DIRECT] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 00:40:39,Gangtok,31.24853502435133,75.70743226404362,[REPORT_SAFE via INTERNET_DIRECT] Citizen checked in as SAFE in designated mountain zone.,Routine,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 00:40:44,Gangtok,31.24853502435133,75.70743226404362,"[NEED_IMMEDIATE_RESCUE via INTERNET_DIRECT] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated
+2026-09-08 01:06:52,Gangtok,31.248502824191014,75.7075939755894,"[NEED_IMMEDIATE_RESCUE via OFFLINE_STORE_AND_FORWARD_SYNC] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: OFFLINE_STORE_AND_FORWARD_SYNC | Fast2SMS: Simulated
+2026-09-08 01:06:52,Gangtok,31.248502824191018,75.7075939755894,"[NEED_IMMEDIATE_RESCUE via OFFLINE_STORE_AND_FORWARD_SYNC] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: OFFLINE_STORE_AND_FORWARD_SYNC | Fast2SMS: Simulated

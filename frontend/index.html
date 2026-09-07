@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel &mdash; NER Landslide Early Warning</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=2.2">
+</head>
+
+<body>
+
+<div class="status-strip" id="statusStrip"></div>
+
+<button class="sos-fab" id="sosButton" title="Send Emergency SOS">
+  <span class="sos-fab-icon">&#128680;</span>
+  <span class="sos-fab-text">SOS</span>
+</button>
+
+<div class="shell">
+
+  <!-- ============ LEFT RAIL ============ -->
+  <aside class="rail">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <path d="M2 20 L9 9 L13 15 L17 6 L26 20 Z" stroke="var(--monsoon)" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div>
+        <div class="brand-name">SENTINEL</div>
+        <div class="brand-sub">NER Landslide Watch</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <span class="nav-idx">01</span> Dashboard
+      </button>
+      <button class="nav-item" data-tab="field">
+        <span class="nav-idx">02</span> Field Report
+      </button>
+      <button class="nav-item" data-tab="roads">
+        <span class="nav-idx">03</span> Road Status
+      </button>
+      <button class="nav-item" data-tab="weather">
+        <span class="nav-idx">04</span> Weather Forecast
+      </button>
+      <button class="nav-item" data-tab="alerts">
+        <span class="nav-idx">05</span> Alert Dispatch
+      </button>
+    </nav>
+
+    <div class="contour-divider"></div>
+
+    <div class="control-block">
+      <div class="control-label">Simulation</div>
+      <label class="slider-label">
+        Rainfall Intensity <span class="mono" id="rainfallVal">1.0x</span>
+      </label>
+      <input type="range" id="rainfallSlider" min="0.5" max="3.0" step="0.1" value="1.0">
+
+      <label class="slider-label">
+        Soil Moisture <span class="mono" id="soilVal">+0%</span>
+      </label>
+      <input type="range" id="soilSlider" min="-20" max="40" step="5" value="0">
+
+      <div class="control-hint">Rainfall 2.5x+ pushes districts into Severe risk.</div>
+    </div>
+
+    <div class="control-block">
+      <div class="control-label">Alert Language</div>
+      <select id="langSelect" class="select"></select>
+    </div>
+
+    <div class="control-block">
+      <div class="control-label">Comms Relay</div>
+      <div class="network-badge" id="networkBadge">
+        <span class="network-dot"></span>
+        <span id="networkBadgeText">CHECKING</span>
+      </div>
+    <div class="control-block">
+      <div class="control-label">Public Access</div>
+      <a href="/citizen" target="_blank" class="chip" style="text-decoration:none; text-align:center; padding:9px 12px; background:rgba(88,166,255,0.15); border:1px solid var(--glacier); color:var(--text); font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
+        <span>📱</span> <span>Open Citizen App</span> &rarr;
+      </a>
+    </div>
+
+    <div class="rail-footer mono">Backend: <span id="apiStatus">checking&hellip;</span></div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="stage">
+
+    <!-- Top Command HUD Bar (SEOC) -->
+    <div class="command-hud-bar">
+      <div class="hud-left">
+        <div class="hud-title-row">
+          <span class="hud-emblem">🛡️</span>
+          <div>
+            <div class="hud-title">STATE EMERGENCY OPERATIONS CENTER &mdash; SEOC COMMAND</div>
+            <div class="hud-sub">DISASTER MANAGEMENT AUTHORITY &middot; NORTH EASTERN REGION (NER)</div>
+          </div>
+        </div>
+      </div>
+      <div class="hud-status-group">
+        <div class="hud-chip"><span class="hud-dot green"></span> Fast2SMS Route: LIVE</div>
+        <div class="hud-chip"><span class="hud-dot green"></span> LoRa Mesh: IN865 ACTIVE</div>
+        <div class="hud-chip"><span class="hud-dot blue"></span> 16 IoT Stations</div>
+        <a href="/citizen" target="_blank" class="hud-btn-citizen"><span>📱</span> Citizen Mobile App &rarr;</a>
+      </div>
+    </div>
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section class="panel active" id="panel-dashboard">
+      <header class="panel-head">
+        <h1>Risk Monitoring &mdash; North Eastern Region</h1>
+        <p class="sub">Real-time landslide risk, terrain-model driven, updated on every simulation change.</p>
+      </header>
+
+      <div class="metric-strip">
+        <div class="metric" data-risk="Low">
+          <div class="metric-label">Low</div>
+          <div class="metric-value mono" id="countLow">&mdash;</div>
+        </div>
+        <div class="metric" data-risk="Moderate">
+          <div class="metric-label">Moderate</div>
+          <div class="metric-value mono" id="countModerate">&mdash;</div>
+        </div>
+        <div class="metric" data-risk="High">
+          <div class="metric-label">High</div>
+          <div class="metric-value mono" id="countHigh">&mdash;</div>
+        </div>
+        <div class="metric" data-risk="Severe">
+          <div class="metric-label">Severe</div>
+          <div class="metric-value mono" id="countSevere">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="map-card">
+          <div class="card-title">Risk Map <span class="card-hint">satellite / street toggle top-right</span></div>
+          <div id="map"></div>
+        </div>
+        <div class="triage-card">
+          <div class="card-title">Triage &mdash; Dispatch Priority</div>
+          <div class="triage-list" id="triageList"></div>
+        </div>
+      </div>
+
+      <div class="list-card sos-dash-card">
+        <div class="card-title">
+          <span>Active SOS Alerts</span>
+          <span class="card-hint">offline-first emergency relay &middot; IN865 sub-GHz telemetry</span>
+        </div>
+
+        <div class="sos-filter-nav">
+          <button type="button" class="sos-filter-btn active" id="btnSosFilterAll" onclick="setSosFilter('ALL')">
+            <span>📋</span> Split View (All) <span class="sos-filter-count" id="countSosAll">0</span>
+          </button>
+          <button type="button" class="sos-filter-btn" id="btnSosFilterReceived" onclick="setSosFilter('RECEIVED')">
+            <span>📥</span> Received at Gateways <span class="sos-filter-count" id="countSosReceived">0</span>
+          </button>
+          <button type="button" class="sos-filter-btn" id="btnSosFilterDelivered" onclick="setSosFilter('DELIVERED')">
+            <span>✅</span> Delivered to SEOC <span class="sos-filter-count" id="countSosDelivered">0</span>
+          </button>
+        </div>
+
+        <div id="sosActiveList"></div>
+      </div>
+
+    </section>
+
+    <!-- ---------- FIELD REPORT ---------- -->
+    <section class="panel" id="panel-field">
+      <header class="panel-head">
+        <h1>Field Report</h1>
+        <p class="sub">Citizens and field officials can log cracks, slope movement, or blocked roads.</p>
+      </header>
+
+      <div class="split">
+        <form class="form-card" id="fieldForm">
+          <label class="field-label">District</label>
+          <select id="fr-district" class="select"></select>
+
+          <label class="field-label">Photo (preview only)</label>
+          <input type="file" id="fr-photo" accept="image/*" class="file-input">
+          <img id="fr-preview" class="fr-preview" style="display:none;">
+
+          <label class="field-label">Describe what you observed</label>
+          <textarea id="fr-desc" rows="4" placeholder="Large crack appeared on the hillside near the main road..."></textarea>
+
+          <button type="submit" class="btn btn-primary">Submit Report</button>
+          <div class="form-result" id="fr-result"></div>
+        </form>
+
+        <div class="list-card">
+          <div class="card-title">Recent Reports</div>
+          <div id="fr-list" class="report-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ROAD STATUS ---------- -->
+    <section class="panel" id="panel-roads">
+      <header class="panel-head">
+        <h1>Road Connectivity Status</h1>
+        <p class="sub">Key highway segments mapped to live district risk.</p>
+      </header>
+      <div class="filter-row">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="Blocked">Blocked</button>
+        <button class="chip" data-filter="At Risk - Advisory">At Risk</button>
+        <button class="chip" data-filter="Open - Monitor">Monitor</button>
+        <button class="chip" data-filter="Open">Open</button>
+      </div>
+      <div id="roadsList" class="road-grid"></div>
+    </section>
+
+    <!-- ---------- WEATHER FORECAST ---------- -->
+    <section class="panel" id="panel-weather">
+      <header class="panel-head">
+        <h1>Weather-Linked Risk Forecast</h1>
+        <p class="sub">3-day forward projection per district, scored through the trained model.</p>
+      </header>
+
+      <div class="escalation-card">
+        <div class="card-title">Escalation Watch</div>
+        <div id="escalationList"></div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="map-card">
+          <div class="card-title">
+            District Trend
+            <select id="forecastDistrict" class="select select-inline"></select>
+          </div>
+          <canvas id="forecastChart" height="260"></canvas>
+        </div>
+        <div class="triage-card">
+          <div class="card-title">Day-by-Day</div>
+          <div id="forecastDayList" class="triage-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ALERT DISPATCH ---------- -->
+    <section class="panel" id="panel-alerts">
+      <header class="panel-head">
+        <h1>Fast2SMS &mdash; Indian Alert Dispatch</h1>
+        <p class="sub" id="alertModeBanner">Checking Fast2SMS gateway status&hellip;</p>
+      </header>
+
+      <button class="btn-mass-dispatch" id="btnMassBroadcast">
+        <span>🚨</span> MASS EMERGENCY BROADCAST &mdash; DISPATCH TO ALL HIGH/SEVERE DISTRICTS
+      </button>
+
+      <div id="alertList"></div>
+
+      <div class="list-card" style="margin-top:20px;">
+        <div class="card-title">Fast2SMS Dispatch Log</div>
+        <div id="dispatchLog" class="report-list"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ SOS MODAL ============ -->
+<div class="sos-overlay" id="sosOverlay">
+  <div class="sos-modal">
+    <button class="sos-modal-close" id="sosClose">&times;</button>
+
+    <div id="sosStepConfirm">
+      <div class="sos-modal-eyebrow">Emergency SOS &middot; Off-Grid Mesh</div>
+      <div class="lora-rf-badge">
+        <span class="lora-rf-dot"></span> LoRa IN865 &middot; 865.200 MHz &middot; SF10 &middot; 125 kHz
+      </div>
+      <h2 class="sos-modal-title">Send distress signal</h2>
+      <p class="sub">Transmits emergency packet across the Himalayan LoRa mesh network even without cellular coverage.</p>
+
+      <label class="field-label">Location (GPS)</label>
+      <div class="sos-location mono" id="sosLocationText">Fetching location&hellip;</div>
+
+      <label class="field-label">Emergency type</label>
+      <select id="sosType" class="select">
+        <option value="LANDSLIDE_SOS">Landslide / slope failure</option>
+        <option value="FLOOD_SOS">Flash flood</option>
+        <option value="ROAD_BLOCK_SOS">Road blocked / trapped</option>
+        <option value="MEDICAL_SOS">Medical emergency</option>
+      </select>
+
+      <label class="field-label">Severity</label>
+      <select id="sosSeverity" class="select">
+        <option value="CRITICAL">Critical &mdash; immediate danger</option>
+        <option value="HIGH">High</option>
+        <option value="MODERATE">Moderate</option>
+      </select>
+
+      <label class="field-label">People affected</label>
+      <input type="number" id="sosPeople" class="sos-input" min="1" value="1">
+
+      <label class="field-label">Message (optional)</label>
+      <textarea id="sosMessage" class="sos-input" rows="2" placeholder="Describe situation or road cut..."></textarea>
+
+      <div class="sos-modal-actions">
+        <button class="btn" id="sosCancel">Cancel</button>
+        <button class="btn btn-send" id="sosSend">Transmit LoRa SOS</button>
+      </div>
+    </div>
+
+    <div id="sosStepResult" style="display:none;">
+      <div class="sos-modal-eyebrow">LoRa Mesh Relay &middot; IN865</div>
+      <h2 class="sos-modal-title" id="sosResultTitle">SOS Transmitted</h2>
+      <p class="sub" id="sosResultBody"></p>
+
+      <div class="lora-telemetry-grid">
+        <div class="lora-telem-card">
+          <div class="lora-telem-label">Frequency</div>
+          <div class="lora-telem-val" id="loraTelemFreq">865.2 MHz</div>
+        </div>
+        <div class="lora-telem-card">
+          <div class="lora-telem-label">Spread Factor</div>
+          <div class="lora-telem-val" id="loraTelemSF">SF10</div>
+        </div>
+        <div class="lora-telem-card">
+          <div class="lora-telem-label">RSSI Signal</div>
+          <div class="lora-telem-val" id="loraTelemRssi">-84 dBm</div>
+        </div>
+        <div class="lora-telem-card">
+          <div class="lora-telem-label">Packet Airtime</div>
+          <div class="lora-telem-val" id="loraTelemAirtime">246 ms</div>
+        </div>
+      </div>
+
+      <div class="lora-hex-box">
+        <span class="lora-hex-label">LoRa Packet Frame (32-byte Binary Hex):</span>
+        <div id="loraHexPayload" style="user-select:all;">4C 53 02 7F A1 09 ...</div>
+      </div>
+
+      <div class="sos-result-meta">
+        <div><span class="control-label">Message ID</span><div class="mono" id="sosResultId"></div></div>
+        <div><span class="control-label">Relay Status</span><div class="mono" id="sosResultStatus"></div></div>
+      </div>
+
+      <div class="control-label" style="margin-top:10px;">Mountain Hop Chain:</div>
+      <div id="loraHopTracker" class="lora-hop-track"></div>
+
+      <div class="sos-modal-actions">
+        <button class="btn btn-primary" id="sosDone" onclick="document.getElementById('sosOverlay').classList.remove('show')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sos-debug-row">
+  <span class="control-label">Mesh Simulation:</span>
+  <button class="chip" id="sosForceOffline">Force Offline</button>
+  <button class="chip" id="sosForceOnline">Force Online</button>
+  <button class="chip" id="sosSyncNow">Sync Mesh</button>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js?v=2.2"></script>
+<script src="sos.js?v=2.2"></script>
+</body>
+</html>
+

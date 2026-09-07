@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sentinel &mdash; Citizen Disaster Safety App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="citizen.css?v=2.4">
+</head>
+
+
+<body>
+
+<!-- Switcher for SIH presentation judges -->
+<a href="/command" class="portal-switch-banner" title="Switch to Command Center">
+  <span>🖥️</span> <span>Officials Command Center</span> &rarr;
+</a>
+
+<div class="phone-viewport-container">
+
+  <!-- Phone Status Bar -->
+  <div class="phone-status-bar">
+    <span id="statusBarTime">09:41</span>
+    <div class="status-notch"></div>
+    <div class="status-icons">
+      <span style="font-size: 11px;">LoRa</span>
+      <span>📶</span>
+      <span>🔋 94%</span>
+    </div>
+  </div>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-brand">
+      <span class="app-brand-logo">🏔️</span>
+      <div>
+        <div class="app-brand-name">SENTINEL</div>
+      </div>
+      <span class="app-brand-badge">CITIZEN</span>
+    </div>
+    <div class="network-pill" id="citizenNetworkBadge">
+      <span class="network-dot"></span>
+      <span id="citizenNetworkText">LoRa IN865</span>
+    </div>
+  </header>
+
+  <!-- Scrollable App Content Container -->
+  <main class="app-content">
+
+    <!-- ==================== TAB 1: SAFETY RADAR (HOME) ==================== -->
+    <section class="tab-panel active" id="tab-home">
+      <!-- GPS Bar -->
+      <div class="location-radar-bar">
+        <div>
+          <div class="location-radar-text">
+            <span>📍</span> <b id="nearestDistrictName">Cherrapunji Sector</b>
+          </div>
+          <div class="location-radar-coords" id="nearestCoords">25.3000° N, 91.7000° E</div>
+        </div>
+        <button class="btn-gps-refresh" id="btnGpsRefresh" title="Refresh GPS">🔄</button>
+      </div>
+
+      <!-- Giant Safety Shield Card -->
+      <div class="safety-shield-card High" id="safetyShieldCard">
+        <div class="safety-shield-head">
+          <div class="safety-shield-status">
+            <span class="safety-icon" id="safetyIcon">⚠️</span>
+            <div>
+              <div class="safety-title" id="safetyTitle">HIGH RISK</div>
+              <div style="font-size: 11px; opacity: 0.85;">Landslide Hazard Alert</div>
+            </div>
+          </div>
+          <span class="safety-badge" id="safetyBadge">WARNING</span>
+        </div>
+
+        <p class="safety-advisory-text" id="safetyAdvisory">
+          Heavy rainfall detected in your mountain sector. High risk of rockfall and slope shearing. Avoid travel on cut-slope roads.
+        </p>
+
+        <div class="shield-metrics-grid">
+          <div class="shield-metric-item">
+            <div class="shield-metric-label">Rainfall</div>
+            <div class="shield-metric-val" id="shieldRainVal">280 mm</div>
+          </div>
+          <div class="shield-metric-item">
+            <div class="shield-metric-label">Saturation</div>
+            <div class="shield-metric-val" id="shieldSoilVal">84%</div>
+          </div>
+          <div class="shield-metric-item">
+            <div class="shield-metric-label">Road State</div>
+            <div class="shield-metric-val" id="shieldRoadVal" style="color:#e67e22">AT RISK</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disaster Authorities Emergency Alert -->
+      <div class="action-card">
+        <div class="action-card-title">
+          <span>🚨 Alert Authorities (SDMA / NDRF)</span>
+          <span id="authorityChannelBadge" style="font-size:10px; font-family:var(--font-mono); padding:2px 8px; border-radius:999px; background:rgba(46,204,113,0.15); color:#2ecc71; border:1px solid rgba(46,204,113,0.3);">🟢 INTERNET READY</span>
+        </div>
+        <p style="font-size:12px; color:var(--c-muted); margin-bottom:8px; line-height:1.4;">
+          Dispatches live GPS coordinates & rescue status directly to <b>State Disaster Management Authority (SDMA)</b>, District Emergency Operations Center, and <b>NDRF Battalion</b>.
+        </p>
+
+        <!-- Transmission Route Selector (Demo Simulator & Real Auto-Detect) -->
+        <div class="authority-route-box">
+          <div class="authority-route-label">
+            <span>TRANSMISSION ROUTE</span>
+            <span id="currentRouteStatus" style="color:#2ecc71; font-family:var(--font-mono); font-size:10px;">HTTP / CELLULAR READY</span>
+          </div>
+          <div class="route-selector-pills">
+            <button type="button" class="route-pill-btn active online" id="btnRouteOnline" onclick="setAuthorityRoute('ONLINE')">
+              <span>🌐</span> Internet (Direct)
+            </button>
+            <button type="button" class="route-pill-btn" id="btnRouteOffline" onclick="setAuthorityRoute('OFFLINE')">
+              <span>⚡</span> LoRa Mesh (Zero-Cell)
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="citizenNameInput" class="mobile-input" placeholder="Your Name / Call Sign" value="Citizen Khushraj">
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button class="btn-family-sms" style="background: #238636;" id="btnSendImSafe" onclick="dispatchAuthorityAlert('REPORT_SAFE')">
+            <span>✅</span> Report Safe
+          </button>
+          <button class="btn-family-sms" style="background: #da3633;" id="btnSendNeedHelp" onclick="dispatchAuthorityAlert('NEED_IMMEDIATE_RESCUE')">
+            <span>🆘</span> Request Rescue
+          </button>
+        </div>
+
+        <!-- Offline Queue Status Banner -->
+        <div id="authorityQueueNotice" class="authority-queue-banner" style="display:none;">
+          <span>📦 <span id="authorityQueueCount">0</span> alert(s) buffered in offline memory</span>
+          <span style="font-size:10px; opacity:0.85;">Auto-resends on reconnect</span>
+        </div>
+
+        <div id="authorityAlertResult" style="font-size:11.5px; font-family:var(--font-mono); margin-top:10px; padding:8px 10px; border-radius:8px; display:none; line-height:1.5;"></div>
+      </div>
+
+
+
+      <!-- Emergency Helplines -->
+      <div class="action-card">
+        <div class="action-card-title">
+          <span>📞 Instant Emergency Helplines</span>
+        </div>
+        <div class="helpline-grid">
+          <a href="tel:112" class="helpline-btn">
+            <div>
+              <div class="helpline-num">112</div>
+              <div class="helpline-desc">National Emergency</div>
+            </div>
+          </a>
+          <a href="tel:1070" class="helpline-btn">
+            <div>
+              <div class="helpline-num">1070</div>
+              <div class="helpline-desc">NDMA Disaster Line</div>
+            </div>
+          </a>
+          <a href="tel:1077" class="helpline-btn">
+            <div>
+              <div class="helpline-num">1077</div>
+              <div class="helpline-desc">District SDRF Control</div>
+            </div>
+          </a>
+          <a href="tel:108" class="helpline-btn">
+            <div>
+              <div class="helpline-num">108</div>
+              <div class="helpline-desc">Mountain Ambulance</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: EMERGENCY SOS ==================== -->
+    <section class="tab-panel" id="tab-sos">
+      <div class="sos-hero-section">
+        <div class="network-pill" style="margin-bottom: 6px;">
+          <span class="network-dot"></span> LoRa IN865 &middot; Zero-Cellular Mesh Active
+        </div>
+        <h2 style="font-size: 20px; font-weight: 800;">Emergency Distress Beacon</h2>
+        <p style="font-size: 12px; color: var(--c-muted); max-width: 290px; margin-top: 4px;">
+          Transmits an encrypted sub-GHz LoRa distress packet directly to mountain rescue & SDRF.
+        </p>
+
+        <!-- Giant SOS Button -->
+        <div class="sos-pulse-ring">
+          <button class="btn-giant-sos" id="btnCitizenSos">
+            <span class="btn-giant-sos-text">SOS</span>
+            <span class="btn-giant-sos-sub">HOLD 1 SEC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SOS Configuration Card -->
+      <div class="sos-form-card">
+        <div class="form-group">
+          <label class="form-label">Emergency Type</label>
+          <select id="citizenSosType" class="mobile-select">
+            <option value="LANDSLIDE_SOS">Landslide / Slope Failure</option>
+            <option value="ROAD_BLOCK_SOS">Trapped in Vehicle / Road Block</option>
+            <option value="FLOOD_SOS">Flash Flood / Mudflow</option>
+            <option value="MEDICAL_SOS">Trauma / Medical Emergency</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">People Stranded / Affected</label>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <input type="range" id="citizenSosPeople" min="1" max="20" value="2" style="flex:1; accent-color:var(--c-danger);">
+            <span id="citizenPeopleCount" style="font-family:var(--font-mono); font-size:16px; font-weight:700; width:28px;">2</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Brief Situation (Optional)</label>
+          <input type="text" id="citizenSosMsg" class="mobile-input" placeholder="e.g. Mud covering road, 2 cars trapped">
+        </div>
+
+        <!-- LoRa Telemetry Preview Badge -->
+        <div style="background:var(--c-card); border:1px dashed var(--c-border); border-radius:10px; padding:10px; font-size:11px; font-family:var(--font-mono); color:var(--c-lora);">
+          <div>📡 Radio: IN865 (865.2 MHz) &middot; SF10 &middot; BW 125kHz</div>
+          <div>⏱️ Airtime: ~246 ms &middot; 32-Byte Encoded Frame</div>
+        </div>
+      </div>
+
+      <!-- Active Transmission Status Modal / Card -->
+      <div id="citizenSosResultBox" style="display:none; margin-top:14px;" class="action-card">
+        <div style="display:flex; align-items:center; gap:8px; color:var(--c-danger); font-weight:700;">
+          <span>🚨</span> <span id="citizenSosResultTitle">LoRa SOS Broadcasted</span>
+        </div>
+        <div style="font-size:12px; margin-top:6px; color:var(--c-muted);" id="citizenSosResultMsg"></div>
+        <div style="font-size:11px; font-family:var(--font-mono); margin-top:8px; background:#000; padding:6px; border-radius:6px; color:#7ee787;" id="citizenSosHexDump"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: SAFE ROUTES & OFFLINE MAP ==================== -->
+    <section class="tab-panel" id="tab-roads">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <h2 style="font-size: 16px; font-weight: 700;">NER Safe Evacuation Routes</h2>
+        <span class="network-pill" style="font-size:10px;">Offline Topo GPS</span>
+      </div>
+      <p style="font-size: 12px; color: var(--c-muted); margin-bottom: 10px;">
+        Real-time geotechnical bypass navigation for all 8 North Eastern states. Works 100% offline.
+      </p>
+
+      <!-- GPS High-Precision Telemetry HUD -->
+      <div class="gps-accuracy-hud" id="gpsPrecisionHud">
+        <div class="gps-hud-left">
+          <span class="gps-pulse-dot"></span>
+          <div>
+            <div class="gps-hud-title">HIGH-PRECISION GNSS LOCK</div>
+            <div class="gps-hud-metrics" id="gpsMetricsText">Accuracy: ±3.8 m &middot; Alt: 1,650 m MSL</div>
+          </div>
+        </div>
+        <div class="gps-hud-badge">NavIC / GPS</div>
+      </div>
+
+      <!-- Interactive Google Maps Viewport with Live GPS Navigation HUD -->
+      <div class="citizen-map-wrapper" id="citizenMapContainer">
+        <div id="citizenOfflineMap" class="citizen-offline-map"></div>
+        
+        <!-- Google Maps Style Turn-by-Turn Navigation Header -->
+        <div class="gmap-nav-banner" id="gmapNavBanner">
+          <div class="gmap-nav-turn-icon" id="gmapTurnIcon">↰</div>
+          <div class="gmap-nav-turn-info">
+            <div class="gmap-nav-dist" id="gmapTurnDist">In 350 m</div>
+            <div class="gmap-nav-street" id="gmapTurnStreet">Turn Left onto Lava Safe Bypass (Ridge Route)</div>
+            <div class="gmap-nav-sub" id="gmapTurnSub">Geotechnically Stable Lifeline &bull; Avoids NH-10 Choke Slip</div>
+          </div>
+        </div>
+
+        <!-- Top Controls: Layer Selector & Elevation Badge -->
+        <div class="map-top-bar">
+          <div class="gmap-layer-pills">
+            <button type="button" class="gmap-layer-btn active" id="btnGmapStreets" onclick="setGmapLayer('STREETS')">🗺️ Map</button>
+            <button type="button" class="gmap-layer-btn" id="btnGmapSat" onclick="setGmapLayer('SATELLITE')">🛰️ Satellite</button>
+            <button type="button" class="gmap-layer-btn" id="btnGmapTerrain" onclick="setGmapLayer('TERRAIN')">⛰️ Terrain</button>
+          </div>
+          <span class="map-chip chip-safe" id="mapChipSafe">🟢 Lava Safe Bypass</span>
+        </div>
+
+        <!-- Floating Side Controls: Compass, Fullscreen & Re-Center GPS -->
+        <div class="gmap-floating-controls">
+          <button type="button" class="gmap-ctrl-btn" id="btnCompass" onclick="resetCompassBearing()" title="Reset North Bearing">
+            <span class="compass-needle" id="compassNeedle">🧭</span>
+          </button>
+          <button type="button" class="gmap-ctrl-btn" id="btnExpandMap" onclick="toggleMapFullscreen()" title="Fullscreen / Expand Map">
+            <span id="expandMapIcon">⛶</span>
+          </button>
+          <button type="button" class="gmap-ctrl-btn recenter" id="btnRecenterGps" onclick="recenterMapOnUser()" title="Re-center on my GPS location">
+            🎯
+          </button>
+        </div>
+
+        <!-- Google Maps Trip Summary & Live Navigation Bar -->
+        <div class="gmap-trip-bar" id="gmapTripBar">
+          <div class="gmap-trip-metrics">
+            <div class="gmap-trip-eta" id="gmapTripEta">38 min</div>
+            <div class="gmap-trip-sub"><span id="gmapTripDist">24.6 km</span> &bull; <span id="gmapTripSafety" style="color:#00e676;">0 Hazards</span></div>
+          </div>
+          <button type="button" class="gmap-nav-start-btn" id="btnToggleNav" onclick="toggleLiveNavigation()">
+            <span id="btnNavIcon">▶</span> <span id="btnNavLabel">Start Nav</span>
+          </button>
+        </div>
+      </div>
+
+
+      <!-- Corridor Selector -->
+      <div class="form-group" style="margin: 12px 0 8px;">
+        <label class="form-label" style="display:flex; justify-content:space-between;">
+          <span>SELECT ARTERIAL CORRIDOR</span>
+          <span style="color:var(--c-accent); font-family:var(--font-mono); font-size:10px;" id="corridorStateBadge">SIKKIM</span>
+        </label>
+        <select id="selectNerCorridor" class="mobile-select" onchange="onCorridorSelected(this.value)">
+          <option value="sikkim_nh10">Sikkim Lifeline: Siliguri ↔ Gangtok (NH-10)</option>
+          <option value="meghalaya_nh6">Meghalaya–Assam: Guwahati ↔ Shillong ↔ Silchar (NH-6)</option>
+          <option value="arunachal_nh13">Arunachal Lifeline: Tezpur ↔ Bomdila ↔ Tawang (NH-13)</option>
+          <option value="nagaland_nh29">Nagaland–Manipur: Dimapur ↔ Kohima ↔ Imphal (NH-29)</option>
+          <option value="mizoram_nh306">Mizoram Lifeline: Silchar ↔ Kolasib ↔ Aizawl (NH-306)</option>
+        </select>
+      </div>
+
+      <!-- Comparative Route Evaluation Card -->
+      <div id="routeComparisonCard">
+        <!-- Injected via citizen.js -->
+      </div>
+
+      <!-- Turn-by-Turn Guidance -->
+      <div class="action-card" style="margin-top:10px;">
+        <div class="action-card-title">
+          <span>🧭 Offline Turn-by-Turn Guidance</span>
+          <span style="font-size:10px; font-family:var(--font-mono); color:var(--c-safe);">VERIFIED BYPASS</span>
+        </div>
+        <div id="routeTurnStepsList" class="turn-steps-list">
+          <!-- Injected via citizen.js -->
+        </div>
+      </div>
+
+      <h2 style="font-size: 15px; font-weight: 700; margin: 18px 0 6px;">Designated High-Ground Relief Shelters</h2>
+      <div id="citizenSheltersList">
+        <!-- Injected via citizen.js -->
+      </div>
+    </section>
+
+
+    <!-- ==================== TAB 4: REPORT HAZARD ==================== -->
+    <section class="tab-panel" id="tab-report">
+      <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Report Slope Damage</h2>
+      <p style="font-size: 12px; color: var(--c-muted); margin-bottom: 14px;">Help disaster authorities detect early signs of slope failure. Works offline.</p>
+
+      <div class="action-card">
+        <div class="form-group">
+          <label class="form-label">Sector / District</label>
+          <select id="reportDistrictSelect" class="mobile-select">
+            <option value="Cherrapunji">Cherrapunji</option>
+            <option value="Shillong">Shillong</option>
+            <option value="Aizawl">Aizawl</option>
+            <option value="Gangtok">Gangtok</option>
+            <option value="Tawang">Tawang</option>
+            <option value="Kohima">Kohima</option>
+            <option value="Itanagar">Itanagar</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observation Details</label>
+          <textarea id="reportDescription" class="mobile-textarea" rows="3" placeholder="Describe cracks in hillside, leaning trees, falling boulders, or road erosion..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Photo Upload (Simulated Site Capture)</label>
+          <input type="file" id="reportPhotoInput" accept="image/*" class="mobile-input" style="padding:6px;">
+        </div>
+
+        <button class="btn-family-sms" style="background:#238636; margin-top:10px;" id="btnSubmitCitizenReport">
+          <span>📤</span> Submit Geo-Tagged Report
+        </button>
+
+        <div id="reportSubmitStatus" style="font-size:12px; font-family:var(--font-mono); margin-top:8px; display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: SURVIVAL GUIDE ==================== -->
+    <section class="tab-panel" id="tab-guide">
+      <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Himalayan Landslide Survival Guide</h2>
+      <p style="font-size: 12px; color: var(--c-muted); margin-bottom: 14px;">Official NDMA safety procedures for hilly and mountainous regions.</p>
+
+      <div class="guide-accordion">
+        <div class="guide-header" onclick="toggleGuide(this)">
+          <span>⚠️ Early Warning Signs</span> <span>▼</span>
+        </div>
+        <div class="guide-body" style="display:block;">
+          <ul>
+            <li>Springs, seeps, or saturated ground appearing in areas not typically wet.</li>
+            <li>New cracks appearing in plaster, tile, brick, or building foundations.</li>
+            <li>Doors or windows sticking or jamming for the first time.</li>
+            <li>Fences, retaining walls, utility poles, or trees tilting uphill or downhill.</li>
+            <li>Faint rumbling sounds that increase in volume as the slide approaches.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="guide-accordion">
+        <div class="guide-header" onclick="toggleGuide(this)">
+          <span>🏃 What To Do During a Landslide</span> <span>▼</span>
+        </div>
+        <div class="guide-body" style="display:none;">
+          <ul>
+            <li><b>Stay alert and awake!</b> Many landslide fatalities occur when people are sleeping during heavy rains.</li>
+            <li>If you are in a building: Move to an upper floor if safe, or curl into a tight ball and protect your head.</li>
+            <li>If you are outdoors: Run to the nearest high ground away from the path of debris.</li>
+            <li>If you are driving: Watch for collapsed pavements, mud, and fallen rocks. Never attempt to cross flooded roads.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="guide-accordion">
+        <div class="guide-header" onclick="toggleGuide(this)">
+          <span>🎒 Emergency Go-Bag Checklist</span> <span>▼</span>
+        </div>
+        <div class="guide-body" style="display:none;">
+          <ul>
+            <li>High-decibel emergency whistle (critical for rescue search teams).</li>
+            <li>LED flashlight with spare batteries.</li>
+            <li>3-day sealed drinking water & high-calorie energy bars.</li>
+            <li>First-aid kit with antiseptic, bandages, and personal prescriptions.</li>
+            <li>Waterproof pouch with government ID, cash, and emergency contacts.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Tab Bar -->
+  <nav class="bottom-nav-bar">
+    <button class="nav-tab-btn active" data-target="tab-home">
+      <span class="tab-icon">🛡️</span>
+      <span>Safety</span>
+    </button>
+    <button class="nav-tab-btn tab-sos" data-target="tab-sos">
+      <span class="tab-icon">🚨</span>
+      <span>SOS</span>
+    </button>
+    <button class="nav-tab-btn" data-target="tab-roads">
+      <span class="tab-icon">🛣️</span>
+      <span>Routes</span>
+    </button>
+    <button class="nav-tab-btn" data-target="tab-report">
+      <span class="tab-icon">📸</span>
+      <span>Report</span>
+    </button>
+    <button class="nav-tab-btn" data-target="tab-guide">
+      <span class="tab-icon">📖</span>
+      <span>Guide</span>
+    </button>
+  </nav>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="citizen.js?v=2.4"></script>
+</body>
+</html>
+
+
+
