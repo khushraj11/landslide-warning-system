@@ -332,6 +332,8 @@ def health():
 
 @app.get("/")
 def root():
+    if os.path.exists("frontend/index.html"):
+        return FileResponse("frontend/index.html")
     return RedirectResponse(url="/citizen", status_code=302)
 
 
