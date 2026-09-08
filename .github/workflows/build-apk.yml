@@ -33,6 +33,7 @@ jobs:
       - name: Sync Capacitor Web Assets
         run: |
           npm install
+          npm run build:citizen
           npx cap sync android
 
       - name: Grant Execute Permission to Gradlew
