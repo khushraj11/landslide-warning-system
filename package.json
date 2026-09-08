@@ -4,9 +4,11 @@
   "description": "SENTINEL Citizen & State Emergency Operations Center Disaster Warning System",
   "main": "frontend/citizen.html",
   "scripts": {
+    "build:citizen": "node scripts/build-citizen.js",
     "cap:add": "cap add android",
-    "cap:sync": "cap sync android",
-    "cap:build": "cap sync && cd android && ./gradlew assembleDebug"
+    "cap:sync": "npm run build:citizen && cap sync android",
+    "cap:build": "node scripts/package-apk.js",
+    "build:apk": "node scripts/package-apk.js"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",

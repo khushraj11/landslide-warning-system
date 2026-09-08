@@ -332,14 +332,7 @@ def health():
 
 @app.get("/")
 def root():
-    return {
-        "message": "Landslide Early Warning & LoRa Mesh SOS API is running",
-        "docs": "/docs",
-        "citizen_app": "/citizen",
-        "command_center": "/command",
-        "gateway": "Fast2SMS",
-        "lora_mesh": "IN865 Active",
-    }
+    return RedirectResponse(url="/citizen", status_code=302)
 
 
 # ---------- Static Frontend Serving & App Switchers ----------

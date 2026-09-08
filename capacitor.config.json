@@ -1,7 +1,7 @@
 {
   "appId": "org.sentinel.disaster.citizen",
   "appName": "SENTINEL Citizen",
-  "webDir": "frontend",
+  "webDir": "citizen-dist",
   "bundledWebRuntime": false,
   "server": {
     "cleartext": true,

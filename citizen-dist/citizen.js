@@ -191,6 +191,7 @@ async function fetchNearestHazard(lat, lon) {
     data = getOfflineNearestDistrict(lat, lon);
   }
   try {
+
     document.getElementById("nearestDistrictName").textContent = `${data.district} Sector (${data.distance_km} km)`;
     currentSectorDistrict = data.district || "Gangtok";
     const shield = document.getElementById("safetyShieldCard");
