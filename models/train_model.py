@@ -32,11 +32,10 @@ def train():
     print(f"Training on {len(X_train)} samples, testing on {len(X_test)} samples...")
 
     model = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=10,
-        min_samples_split=5,
-        random_state=42,
-        class_weight="balanced"
+        n_estimators=300,
+        max_depth=16,
+        min_samples_split=2,
+        random_state=42
     )
     model.fit(X_train, y_train)
 

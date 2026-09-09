@@ -40,12 +40,46 @@ function initNav() {
       btn.classList.add("active");
       const targetPanel = document.getElementById(`panel-${btn.dataset.tab}`);
       if (targetPanel) targetPanel.classList.add("active");
+      if (btn.dataset.tab === "dashboard") {
+        setTimeout(() => { if (map) map.invalidateSize(); }, 150);
+      }
       if (btn.dataset.tab === "roads") loadRoads();
       if (btn.dataset.tab === "weather") loadForecast();
       if (btn.dataset.tab === "alerts") loadAlertsPanel();
       if (btn.dataset.tab === "field") loadFieldReports();
       if (btn.dataset.tab === "sensors") loadSensors();
     });
+  });
+}
+
+function initMobileNav() {
+  const btnMenu = document.getElementById("btnMobileMenu");
+  const sidebar = document.getElementById("mainSidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  const btnClose = document.getElementById("btnSidebarClose");
+
+  function openSidebar() {
+    if (sidebar) sidebar.classList.add("open");
+    if (backdrop) backdrop.classList.add("active");
+  }
+
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove("open");
+    if (backdrop) backdrop.classList.remove("active");
+  }
+
+  if (btnMenu) btnMenu.addEventListener("click", openSidebar);
+  if (btnClose) btnClose.addEventListener("click", closeSidebar);
+  if (backdrop) backdrop.addEventListener("click", closeSidebar);
+
+  document.querySelectorAll(".nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      closeSidebar();
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    if (map) map.invalidateSize();
   });
 }
 
@@ -697,6 +731,7 @@ window.loadSensors = loadSensors;
 
 window.addEventListener("DOMContentLoaded", async () => {
   initNav();
+  initMobileNav();
   initMap();
   initSliders();
   initRoadFilters();

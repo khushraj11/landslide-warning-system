@@ -14,6 +14,26 @@
 
 <div class="status-strip" id="statusStrip"></div>
 
+<!-- Mobile Responsive Top Header Bar -->
+<header class="mobile-topbar" id="mobileTopbar">
+  <button type="button" class="mobile-menu-btn" id="btnMobileMenu" aria-label="Toggle navigation drawer">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+  <div class="mobile-brand">
+    <span style="font-size: 18px;">🏔️</span>
+    <span class="mobile-brand-name">SENTINEL</span>
+  </div>
+  <a href="/citizen" class="mobile-portal-link" title="Open Citizen Portal">
+    <span>📱</span> <span>Citizen</span>
+  </a>
+</header>
+
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
 <button class="sos-fab" id="sosButton" title="Send Emergency SOS">
   <span class="sos-fab-icon">&#128680;</span>
   <span class="sos-fab-text">SOS</span>
@@ -22,15 +42,18 @@
 <div class="shell">
 
   <!-- ============ LEFT RAIL ============ -->
-  <aside class="rail">
-    <div class="brand">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <path d="M2 20 L9 9 L13 15 L17 6 L26 20 Z" stroke="var(--monsoon)" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
-      </svg>
-      <div>
-        <div class="brand-name">SENTINEL</div>
-        <div class="brand-sub">NER Landslide Watch</div>
+  <aside class="rail" id="mainSidebar">
+    <div class="brand" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M2 20 L9 9 L13 15 L17 6 L26 20 Z" stroke="var(--monsoon)" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <div>
+          <div class="brand-name">SENTINEL</div>
+          <div class="brand-sub">NER Landslide Watch</div>
+        </div>
       </div>
+      <button type="button" class="sidebar-close-btn" id="btnSidebarClose" aria-label="Close sidebar">&times;</button>
     </div>
 
     <nav class="nav">
@@ -82,9 +105,11 @@
         <span class="network-dot"></span>
         <span id="networkBadgeText">CHECKING</span>
       </div>
+    </div>
+
     <div class="control-block">
       <div class="control-label">Public Access</div>
-      <a href="/citizen" target="_blank" class="chip" style="text-decoration:none; text-align:center; padding:9px 12px; background:rgba(88,166,255,0.15); border:1px solid var(--glacier); color:var(--text); font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
+      <a href="/citizen" class="chip" style="text-decoration:none; text-align:center; padding:9px 12px; background:rgba(88,166,255,0.15); border:1px solid var(--glacier); color:var(--text); font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
         <span>📱</span> <span>Open Citizen App</span> &rarr;
       </a>
     </div>
@@ -427,16 +452,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<div class="sos-debug-row">
-  <span class="control-label">Mesh Simulation:</span>
-  <button class="chip" id="sosForceOffline">Force Offline</button>
-  <button class="chip" id="sosForceOnline">Force Online</button>
-  <button class="chip" id="sosSyncNow">Sync Mesh</button>
-
-</div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="app.js?v=2.2"></script>

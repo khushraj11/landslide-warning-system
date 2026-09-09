@@ -478,16 +478,25 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("sosClose").addEventListener("click", closeSosModal);
   document.getElementById("sosSend").addEventListener("click", sendSos);
 
-  document.getElementById("sosForceOffline").addEventListener("click", () => {
-    forcedNetworkState = false;
-    checkNetwork();
-  });
-  document.getElementById("sosForceOnline").addEventListener("click", () => {
-    forcedNetworkState = true;
-    checkNetwork();
-    syncOfflineQueue();
-  });
-  document.getElementById("sosSyncNow").addEventListener("click", syncOfflineQueue);
+  const btnForceOff = document.getElementById("sosForceOffline");
+  if (btnForceOff) {
+    btnForceOff.addEventListener("click", () => {
+      forcedNetworkState = false;
+      checkNetwork();
+    });
+  }
+  const btnForceOn = document.getElementById("sosForceOnline");
+  if (btnForceOn) {
+    btnForceOn.addEventListener("click", () => {
+      forcedNetworkState = true;
+      checkNetwork();
+      syncOfflineQueue();
+    });
+  }
+  const btnSyncNow = document.getElementById("sosSyncNow");
+  if (btnSyncNow) {
+    btnSyncNow.addEventListener("click", syncOfflineQueue);
+  }
 
   checkNetwork();
   loadActiveSos();
