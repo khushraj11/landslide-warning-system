@@ -1,0 +1,255 @@
+{
+  "Cherrapunji": {
+    "district": "Cherrapunji",
+    "state": "Meghalaya",
+    "primary_language": "Khasi",
+    "total_registered": 482,
+    "groups": [
+      "Sohra / Mawsmai Village Council",
+      "East Khasi Hills DDMA",
+      "Sohra CHC Emergency Ward",
+      "Cliffside Subscribed Residents"
+    ],
+    "contacts": [
+      "9876543210",
+      "9854012345",
+      "9436123456",
+      "9774056789"
+    ]
+  },
+  "Gangtok": {
+    "district": "Gangtok",
+    "state": "Sikkim",
+    "primary_language": "Nepali",
+    "total_registered": 1242,
+    "groups": [
+      "Teesta Gorge Resident Watch",
+      "Sikkim SDRF Incident HQ",
+      "BRO Swastik Emergency Cell",
+      "STNM Hospital Trauma Unit",
+      "SDRF Rescue Unit"
+    ],
+    "contacts": [
+      "9876543210",
+      "9434011223",
+      "9800123456",
+      "9733098765",
+      "9811223344",
+      "9822334455"
+    ]
+  },
+  "Aizawl": {
+    "district": "Aizawl",
+    "state": "Mizoram",
+    "primary_language": "Mizo",
+    "total_registered": 890,
+    "groups": [
+      "Durtlang Hill Safety Committee",
+      "Mizoram DM&R Rapid Response",
+      "Aizawl Civil Defense Corps"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436145678",
+      "9862567890",
+      "9774234567"
+    ]
+  },
+  "Shillong": {
+    "district": "Shillong",
+    "state": "Meghalaya",
+    "primary_language": "Khasi",
+    "total_registered": 2150,
+    "groups": [
+      "East Khasi Hills District Disaster HQ",
+      "Shillong Traffic & Road Cut Control",
+      "Meghalaya Police QRT"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436100112",
+      "9856012345",
+      "9863098765"
+    ]
+  },
+  "Tawang": {
+    "district": "Tawang",
+    "state": "Arunachal Pradesh",
+    "primary_language": "English",
+    "total_registered": 340,
+    "groups": [
+      "Sela Tunnel South Portal Team",
+      "BRO Project Vartak",
+      "Tawang District Administration"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436045678",
+      "9402012345"
+    ]
+  },
+  "Kohima": {
+    "district": "Kohima",
+    "state": "Nagaland",
+    "primary_language": "English",
+    "total_registered": 620,
+    "groups": [
+      "Nagaland NSDMA Operations Cell",
+      "Kohima Village Disaster Management Board",
+      "Dz\u00fckou Highway Watch"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436001234",
+      "9862112233"
+    ]
+  },
+  "Itanagar": {
+    "district": "Itanagar",
+    "state": "Arunachal Pradesh",
+    "primary_language": "Hindi",
+    "total_registered": 780,
+    "groups": [
+      "Papum Pare District Authority",
+      "Arunachal SDRF Battalions",
+      "Naharlagun Road Emergency Team"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436023456",
+      "9862890123"
+    ]
+  },
+  "Along": {
+    "district": "Along",
+    "state": "Arunachal Pradesh",
+    "primary_language": "Hindi",
+    "total_registered": 290,
+    "groups": [
+      "West Siang Disaster Committee",
+      "Along-Pasighat Highway Watch"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436078901"
+    ]
+  },
+  "Ziro": {
+    "district": "Ziro",
+    "state": "Arunachal Pradesh",
+    "primary_language": "Hindi",
+    "total_registered": 310,
+    "groups": [
+      "Lower Subansiri DDMA",
+      "Hapoli Hill Patrol"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436089012"
+    ]
+  },
+  "Bomdila": {
+    "district": "Bomdila",
+    "state": "Arunachal Pradesh",
+    "primary_language": "Hindi",
+    "total_registered": 410,
+    "groups": [
+      "West Kameng Disaster Management Board",
+      "Dirang Cutting Emergency Unit"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436034567"
+    ]
+  },
+  "Churachandpur": {
+    "district": "Churachandpur",
+    "state": "Manipur",
+    "primary_language": "Manipuri",
+    "total_registered": 450,
+    "groups": [
+      "Tipaimukh Highway Council",
+      "Churachandpur Community Relief"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436056789"
+    ]
+  },
+  "Imphal": {
+    "district": "Imphal",
+    "state": "Manipur",
+    "primary_language": "Manipuri",
+    "total_registered": 1180,
+    "groups": [
+      "Manipur SDMA Central Control",
+      "NH-37 Corridor Emergency Patrol"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436067890",
+      "9862345678"
+    ]
+  },
+  "Wokha": {
+    "district": "Wokha",
+    "state": "Nagaland",
+    "primary_language": "English",
+    "total_registered": 280,
+    "groups": [
+      "Doyang Catchment Disaster Team",
+      "Wokha Hill Slope Watch"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436090123"
+    ]
+  },
+  "Dimapur": {
+    "district": "Dimapur",
+    "state": "Nagaland",
+    "primary_language": "English",
+    "total_registered": 1420,
+    "groups": [
+      "Dimapur Civil Relief Base",
+      "Chumukedima Foothills Liaison"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436012345",
+      "9862456789"
+    ]
+  },
+  "Guwahati": {
+    "district": "Guwahati",
+    "state": "Assam",
+    "primary_language": "Assamese",
+    "total_registered": 3850,
+    "groups": [
+      "Assam ASDMA Operations Command",
+      "Kamrup Metro Slope Safety Cell",
+      "Guwahati Municipal Disaster Response"
+    ],
+    "contacts": [
+      "9876543210",
+      "9435012345",
+      "9864012345",
+      "9854098765"
+    ]
+  },
+  "Agartala": {
+    "district": "Agartala",
+    "state": "Tripura",
+    "primary_language": "Bengali",
+    "total_registered": 1220,
+    "groups": [
+      "Tripura State Disaster Authority (TRDM)",
+      "West Tripura Emergency Team"
+    ],
+    "contacts": [
+      "9876543210",
+      "9436120001",
+      "9862123456"
+    ]
+  }
+}

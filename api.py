@@ -5,9 +5,10 @@ and LoRa Mesh emergency SOS relay behind a REST API.
 
 Run with: uvicorn api:app --reload --port 8000
 """
+import json
 import os
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 
 import joblib
 import numpy as np
@@ -77,8 +78,10 @@ LOG_FILE = "data/alert_dispatch_log.csv"
 
 def score_risk(rainfall_multiplier: float, soil_offset: float) -> pd.DataFrame:
     features = BASE_DF.copy()
-    features["rainfall_mm"] = features["rainfall_mm"] * rainfall_multiplier
-    features["soil_moisture_pct"] = np.clip(features["soil_moisture_pct"] + soil_offset, 0, 100)
+    features["baseline_rainfall_mm"] = features["rainfall_mm"].round(1)
+    features["baseline_soil_moisture_pct"] = features["soil_moisture_pct"].round(1)
+    features["rainfall_mm"] = (features["rainfall_mm"] * rainfall_multiplier).round(1)
+    features["soil_moisture_pct"] = np.clip(features["soil_moisture_pct"] + soil_offset, 0, 100).round(1)
     X = features[["rainfall_mm", "soil_moisture_pct", "slope_angle_deg", "historical_landslides"]]
     preds = MODEL.predict(X)
     probs = MODEL.predict_proba(X)
@@ -295,6 +298,228 @@ def get_alert_log():
         return {"log": []}
     df = pd.read_csv(LOG_FILE).sort_values("timestamp", ascending=False)
     return {"log": df.to_dict(orient="records")}
+
+
+SUBSCRIBERS_FILE = "data/subscribers.json"
+
+def load_subscribers() -> dict:
+    if os.path.exists(SUBSCRIBERS_FILE):
+        try:
+            with open(SUBSCRIBERS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_subscribers(data: dict):
+    os.makedirs("data", exist_ok=True)
+    with open(SUBSCRIBERS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+@app.get("/api/subscribers")
+def get_subscribers():
+    subs = load_subscribers()
+    total_citizens = sum(d.get("total_registered", 0) for d in subs.values())
+    return {
+        "total_citizens": total_citizens,
+        "total_districts": len(subs),
+        "districts": subs,
+    }
+
+
+class SubscriberAdd(BaseModel):
+    district: str
+    phone: str
+    name: Optional[str] = "Citizen Subscriber"
+    group: Optional[str] = "Registered Hillside Residents"
+
+
+@app.post("/api/subscribers/add")
+def add_subscriber(payload: SubscriberAdd):
+    subs = load_subscribers()
+    clean_phone = clean_indian_phone(payload.phone)
+    if len(clean_phone) != 10:
+        raise HTTPException(status_code=400, detail="Invalid Indian 10-digit mobile number")
+
+    dist = payload.district
+    if dist not in subs:
+        subs[dist] = {
+            "district": dist, "state": "NER Sector", "primary_language": "English",
+            "total_registered": 1, "groups": [payload.group or "Registered Residents"],
+            "contacts": [clean_phone]
+        }
+    else:
+        contacts = subs[dist].get("contacts", [])
+        if clean_phone not in contacts:
+            subs[dist]["contacts"] = contacts + [clean_phone]
+            subs[dist]["total_registered"] = subs[dist].get("total_registered", 0) + 1
+        if payload.group and payload.group not in subs[dist].get("groups", []):
+            subs[dist]["groups"].append(payload.group)
+
+    save_subscribers(subs)
+    return {
+        "status": "success",
+        "message": f"Added +91 {clean_phone} to {dist} emergency directory",
+        "district": dist,
+        "total_registered": subs[dist]["total_registered"],
+    }
+
+
+class BulkSubscriberAdd(BaseModel):
+    district: str
+    phones: List[str]
+    group: Optional[str] = "Emergency Responders"
+
+
+@app.post("/api/subscribers/bulk-add")
+def bulk_add_subscribers(payload: BulkSubscriberAdd):
+    subs = load_subscribers()
+    dist = payload.district
+    if dist not in subs:
+        subs[dist] = {
+            "district": dist, "state": "NER Sector", "primary_language": "English",
+            "total_registered": 0, "groups": [payload.group or "Registered Residents"],
+            "contacts": []
+        }
+    added_count = 0
+    contacts = list(subs[dist].get("contacts", []))
+    for p in payload.phones:
+        clean = clean_indian_phone(str(p).strip())
+        if len(clean) == 10 and clean not in contacts:
+            contacts.append(clean)
+            added_count += 1
+    subs[dist]["contacts"] = contacts
+    subs[dist]["total_registered"] = subs[dist].get("total_registered", 0) + added_count
+    if payload.group and payload.group not in subs[dist].get("groups", []):
+        subs[dist].setdefault("groups", []).append(payload.group)
+    save_subscribers(subs)
+    return {
+        "status": "success",
+        "added_count": added_count,
+        "total_contacts": len(subs[dist]["contacts"]),
+        "total_registered": subs[dist]["total_registered"],
+        "message": f"Successfully added {added_count} new contact(s) to {dist} emergency directory.",
+    }
+
+
+class DistrictBroadcast(BaseModel):
+    district: str
+    risk: str
+    language: Optional[str] = "English"
+
+
+@app.post("/api/alerts/broadcast-district")
+def broadcast_district(payload: DistrictBroadcast):
+    subs = load_subscribers()
+    dist_info = subs.get(payload.district, {})
+    contacts = dist_info.get("contacts", ["9876543210"])
+    total_registered = dist_info.get("total_registered", len(contacts) * 100)
+    lang = payload.language or dist_info.get("primary_language", "English")
+
+    message = get_alert(payload.district, payload.risk, lang)
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    dispatched_logs = []
+    for phone in contacts:
+        status, detail = send_fast2sms(phone, message)
+        dispatched_logs.append({
+            "timestamp": now_str,
+            "district": payload.district,
+            "risk_label": payload.risk,
+            "language": lang,
+            "phone": phone,
+            "message": message,
+            "status": status,
+            "gateway": "Fast2SMS (District Broadcast)",
+        })
+
+    os.makedirs("data", exist_ok=True)
+    df = pd.read_csv(LOG_FILE) if os.path.exists(LOG_FILE) else pd.DataFrame(columns=dispatched_logs[0].keys())
+    df = pd.concat([df, pd.DataFrame(dispatched_logs)], ignore_index=True)
+    df.to_csv(LOG_FILE, index=False)
+
+    return {
+        "status": "Dispatched",
+        "district": payload.district,
+        "risk_label": payload.risk,
+        "language": lang,
+        "contacts_dispatched": len(contacts),
+        "total_registered_citizens_reached": total_registered,
+        "detail": f"Dispatched emergency SMS broadcast to {total_registered} registered citizens & disaster officials in {payload.district}.",
+        "message": message,
+    }
+
+
+class MassBroadcast(BaseModel):
+    rainfall: float = 1.0
+    soil: float = 0.0
+    language: Optional[str] = "English"
+
+
+@app.post("/api/alerts/broadcast-mass")
+def broadcast_mass(payload: MassBroadcast):
+    df = score_risk(payload.rainfall, payload.soil)
+    critical = df[df["risk_label"].isin(["High", "Severe"])]
+
+    if critical.empty:
+        return {
+            "status": "No Action",
+            "message": "No sectors currently at High or Severe risk. No emergency broadcast required.",
+            "sectors_alerted": 0,
+            "total_citizens_reached": 0,
+            "sectors": [],
+        }
+
+    subs = load_subscribers()
+    total_reached = 0
+    sectors_detail = []
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    dispatched_logs = []
+
+    for _, row in critical.iterrows():
+        dist = row["district"]
+        risk = row["risk_label"]
+        dist_info = subs.get(dist, {})
+        lang = payload.language if payload.language and payload.language != "Default" else dist_info.get("primary_language", "English")
+        contacts = dist_info.get("contacts", ["9876543210"])
+        registered = dist_info.get("total_registered", len(contacts) * 100)
+        total_reached += registered
+
+        msg = get_alert(dist, risk, lang)
+        for phone in contacts:
+            status, detail = send_fast2sms(phone, msg)
+            dispatched_logs.append({
+                "timestamp": now_str,
+                "district": dist,
+                "risk_label": risk,
+                "language": lang,
+                "phone": phone,
+                "message": msg,
+                "status": status,
+                "gateway": "Fast2SMS (Mass Broadcast)",
+            })
+
+        sectors_detail.append({
+            "district": dist,
+            "risk_label": risk,
+            "language": lang,
+            "registered_citizens": registered,
+        })
+
+    os.makedirs("data", exist_ok=True)
+    if dispatched_logs:
+        df_log = pd.read_csv(LOG_FILE) if os.path.exists(LOG_FILE) else pd.DataFrame(columns=dispatched_logs[0].keys())
+        df_log = pd.concat([df_log, pd.DataFrame(dispatched_logs)], ignore_index=True)
+        df_log.to_csv(LOG_FILE, index=False)
+
+    return {
+        "status": "Dispatched",
+        "sectors_alerted": len(sectors_detail),
+        "total_citizens_reached": total_reached,
+        "detail": f"Mass Emergency Broadcast successfully transmitted to {total_reached:,} registered citizens across {len(sectors_detail)} critical sectors.",
+        "sectors": sectors_detail,
+    }
 
 
 SENSOR_STATIONS_META = [

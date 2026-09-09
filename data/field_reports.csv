@@ -21,3 +21,5 @@ timestamp,district,latitude,longitude,description,urgency,official_verified,offi
 2026-09-08 13:21:16,Gangtok,31.25289769275922,75.70377154362903,[REPORT_SAFE via INTERNET_DIRECT] Citizen checked in as SAFE in designated mountain zone.,Routine,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated,,
 2026-09-08 13:21:18,Gangtok,31.25289769275922,75.70377154362903,[REPORT_SAFE via INTERNET_DIRECT] Citizen checked in as SAFE in designated mountain zone.,Routine,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated,,
 2026-09-09 12:41:40,Cherrapunji,25.29,91.71,Crack on hillside road,Urgent,,,video,slide_video.mp4
+2026-09-09 13:08:02,Gangtok,31.251482073993433,75.70446330142748,[REPORT_SAFE via INTERNET_DIRECT] Citizen checked in as SAFE in designated mountain zone.,Routine,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated,,
+2026-09-09 13:08:04,Gangtok,31.251482073993433,75.70446330142748,"[NEED_IMMEDIATE_RESCUE via INTERNET_DIRECT] CRITICAL: Citizen requests immediate search, evacuation & rescue assistance.",Urgent,PENDING,Channel: INTERNET_DIRECT | Fast2SMS: Simulated,,

@@ -187,9 +187,9 @@ function renderMapMarkers(districts) {
         <div style="font-size:14px; font-weight:bold; margin-bottom:4px;">${d.district} Sector</div>
         <div style="margin-bottom:6px;">Status: <b style="color:${color};">${d.risk_label.toUpperCase()} RISK</b> (${(d.confidence * 100).toFixed(0)}% AI Conf)</div>
         <div style="font-size:12px; color:#555; line-height:1.5;">
-          🌧️ Rainfall: <b>${d.rainfall_mm.toFixed(0)} mm</b><br>
-          💧 Saturation: <b>${d.soil_moisture_pct.toFixed(0)}%</b><br>
-          📐 Slope Angle: <b>${d.slope_angle_deg.toFixed(1)}°</b>
+          🌧️ Rainfall: <b>${d.rainfall_mm.toFixed(0)} mm</b> ${d.baseline_rainfall_mm ? `<span style="color:#888; font-size:11px;">(Base: ${d.baseline_rainfall_mm}mm)</span>` : ""}<br>
+          💧 Saturation: <b>${d.soil_moisture_pct.toFixed(0)}%</b> ${d.baseline_soil_moisture_pct ? `<span style="color:#888; font-size:11px;">(Base: ${d.baseline_soil_moisture_pct}%)</span>` : ""}<br>
+          📐 Slope Angle: <b>${d.slope_angle_deg.toFixed(1)}°</b> &middot; Past Events: <b>${d.historical_landslides || 0}</b>
         </div>
         ${isCritical ? `<div style="margin-top:8px; padding-top:6px; border-top:1px solid #eee; font-size:11px; color:#e74c3c; font-weight:bold;">⚠️ EVACUATION BUFFER ACTIVE (5 KM)</div>` : ""}
       </div>`
@@ -233,24 +233,22 @@ async function renderNerCorridorsOnMap() {
              Advantage: ${c.safest_alternate.advantage}<br>
              Distance: ${c.safest_alternate.distance_km} km (+${c.safest_alternate.extra_km} km)<br>
              Gradient: ${c.safest_alternate.gradient_steepness}<br>
-             Safe Camps: ${c.safest_alternate.shelters_en_route.join(", ")}
+             Safe Speed: ${c.safest_alternate.estimated_safe_speed}
            </div>`
         ).addTo(nerCorridorsLayer);
       }
     });
   } catch (err) {
-    console.warn("Could not load NER corridors on command map", err);
+    console.warn("Could not load NER alternate corridors:", err);
   }
 }
 
 
-function riskCardHTML(title, riskLabel, metaLine, extraRight = "") {
+function riskCardHTML(district, risk, meta) {
   return `
-    <div class="risk-card ${riskLabel}">
-      <div class="risk-card-title">${title}
-        <span class="risk-badge">${riskLabel}</span> ${extraRight}
-      </div>
-      <div class="risk-meta">${metaLine}</div>
+    <div class="risk-card ${risk}">
+      <div class="risk-card-title">${district} <span class="risk-badge">${risk}</span></div>
+      <div class="risk-meta">${meta}</div>
     </div>`;
 }
 
@@ -273,7 +271,7 @@ async function loadDashboard() {
       riskCardHTML(
         d.district,
         d.risk_label,
-        `conf ${(d.confidence * 100).toFixed(0)}% &middot; rain ${d.rainfall_mm.toFixed(0)}mm &middot; soil ${d.soil_moisture_pct.toFixed(0)}%`
+        `conf ${(d.confidence * 100).toFixed(0)}% &middot; rain ${d.rainfall_mm.toFixed(0)}mm ${d.baseline_rainfall_mm ? `(base ${d.baseline_rainfall_mm}mm)` : ""} &middot; soil ${d.soil_moisture_pct.toFixed(0)}%`
       )
     )
     .join("");
@@ -564,63 +562,168 @@ async function loadFieldReports() {
 }
 
 
+let cachedSubscribers = {};
+
 async function loadAlertsPanel() {
   const health = await api("/api/health");
   const banner = document.getElementById("alertModeBanner");
-  banner.textContent = health.fast2sms_live
-    ? "LIVE MODE: Fast2SMS Indian SMS Gateway active -- real SMS will be delivered to Indian (+91) numbers."
-    : "DEMO SIMULATION MODE: Fast2SMS sandbox active -- realistic dispatch receipts generated for hackathon demo.";
-  banner.style.color = health.fast2sms_live ? "var(--risk-low)" : "var(--risk-moderate)";
+  if (banner) {
+    banner.textContent = health.fast2sms_live
+      ? "LIVE MODE: Fast2SMS Indian SMS Gateway active -- real SMS will be delivered to Indian (+91) numbers."
+      : "DEMO SIMULATION MODE: Fast2SMS sandbox active -- realistic dispatch receipts generated for hackathon demo.";
+    banner.style.color = health.fast2sms_live ? "var(--risk-low)" : "var(--risk-moderate)";
+  }
+
+  // Load subscriber directory info
+  try {
+    const subData = await api("/api/subscribers");
+    cachedSubscribers = subData.districts || {};
+    const totalEl = document.getElementById("totalSubscribersCount");
+    if (totalEl) totalEl.textContent = (subData.total_citizens || 0).toLocaleString();
+  } catch (err) {
+    console.warn("Could not load subscriber directory:", err);
+  }
 
   const massBtn = document.getElementById("btnMassBroadcast");
+  const massFeedback = document.getElementById("massBroadcastFeedback");
   if (massBtn) {
     massBtn.onclick = async () => {
       massBtn.disabled = true;
-      massBtn.innerHTML = "<span>⏳</span> BROADCASTING TO ALL HIGH/SEVERE SECTORS...";
-      const { districts } = await api(`/api/risk?rainfall=${state.rainfall}&soil=${state.soil}`);
-      const critical = districts.filter((d) => d.risk_label === "High" || d.risk_label === "Severe");
-      const lang = document.getElementById("langSelect").value || "English";
-
-      let sent = 0;
-      for (const d of critical) {
-        await apiPost("/api/alerts/send", { district: d.district, risk: d.risk_label, language: lang, phone: "9876543210" });
-        sent++;
+      massBtn.innerHTML = "<span>⏳</span> DISPATCHING MASS EMERGENCY BROADCAST TO REGISTERED DIRECTORY...";
+      if (massFeedback) {
+        massFeedback.style.display = "block";
+        massFeedback.style.background = "rgba(88,166,255,0.1)";
+        massFeedback.style.border = "1px solid var(--glacier)";
+        massFeedback.style.color = "var(--text)";
+        massFeedback.innerHTML = "Broadcasting localized emergency SMS across all high/severe risk sectors...";
       }
+
+      const lang = document.getElementById("langSelect")?.value || "English";
+      try {
+        const res = await apiPost("/api/alerts/broadcast-mass", {
+          rainfall: state.rainfall,
+          soil: state.soil,
+          language: lang,
+        });
+
+        if (massFeedback) {
+          if (res.sectors_alerted > 0) {
+            massFeedback.style.background = "rgba(46,204,113,0.12)";
+            massFeedback.style.border = "1px solid var(--risk-low)";
+            massFeedback.style.color = "var(--risk-low)";
+            massFeedback.innerHTML = `<b>✅ Mass Broadcast Completed:</b> Reached <b>${(res.total_citizens_reached || 0).toLocaleString()} registered citizens & emergency officials</b> across ${res.sectors_alerted} critical sectors: ${res.sectors.join(", ")}.`;
+          } else {
+            massFeedback.style.background = "rgba(255,255,255,0.05)";
+            massFeedback.style.border = "1px solid var(--contour)";
+            massFeedback.style.color = "var(--text-muted)";
+            massFeedback.innerHTML = `ℹ️ ${res.message}`;
+          }
+        }
+      } catch (e) {
+        if (massFeedback) {
+          massFeedback.style.background = "rgba(231,76,60,0.15)";
+          massFeedback.style.border = "1px solid var(--risk-severe)";
+          massFeedback.style.color = "var(--risk-severe)";
+          massFeedback.textContent = "Mass broadcast failed: " + e.message;
+        }
+      }
+
       massBtn.disabled = false;
-      massBtn.innerHTML = `<span>✅</span> BROADCAST COMPLETED (${sent} DISTRICTS ALERTED)`;
-      setTimeout(() => {
-        massBtn.innerHTML = `<span>🚨</span> MASS EMERGENCY BROADCAST &mdash; DISPATCH TO ALL HIGH/SEVERE DISTRICTS`;
-      }, 3500);
+      massBtn.innerHTML = `<span>🚨</span> MASS EMERGENCY BROADCAST &mdash; DISPATCH TO ALL HIGH/SEVERE DISTRICTS`;
       loadDispatchLog();
     };
   }
 
   const { districts } = await api(`/api/risk?rainfall=${state.rainfall}&soil=${state.soil}`);
   const critical = districts.filter((d) => d.risk_label === "High" || d.risk_label === "Severe");
-  const lang = document.getElementById("langSelect").value || "English";
+  const lang = document.getElementById("langSelect")?.value || "English";
 
   const cards = await Promise.all(
     critical.map(async (d) => {
       const { message } = await api(`/api/alert-text?district=${encodeURIComponent(d.district)}&risk=${d.risk_label}&language=${lang}`);
+      const distInfo = cachedSubscribers[d.district] || {};
+      const regCount = (distInfo.total_registered || 450).toLocaleString();
+      const groups = distInfo.groups || ["DDMA Cell", "SDRF Squad", "Registered Residents"];
+      const groupsHtml = groups.map((g) => `<span class="tag-pill">🏷️ ${g}</span>`).join(" ");
+
       return `
         <div class="alert-card ${d.risk_label}" data-district="${d.district}" data-risk="${d.risk_label}">
           <div class="alert-row">
-            <div class="risk-card-title">${d.district} <span class="risk-badge">${d.risk_label}</span></div>
+            <div class="risk-card-title">
+              ${d.district} <span style="font-size:12px; font-weight:normal; color:var(--text-muted);">(${distInfo.state || "NER"})</span>
+              <span class="risk-badge">${d.risk_label}</span>
+            </div>
+            <span class="sub-badge">👥 ${regCount} Registered Contacts</span>
           </div>
+
+          <div class="district-meta-row">
+            <div class="tag-group">${groupsHtml}</div>
+          </div>
+
           <div class="alert-msg">${message}</div>
-          <div class="phone-row">
-            <input class="phone-input" placeholder="98XXXXXXXX (Indian 10-digit)" value="9876543210" />
-            <button class="btn btn-send">Dispatch SMS</button>
+
+          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-top:12px;">
+            <button class="btn-broadcast-district" data-district="${d.district}" data-risk="${d.risk_label}">
+              <span>📢</span> Broadcast to ${d.district} Directory (${regCount} Contacts)
+            </button>
+            <button type="button" class="chip" style="font-size:11px; padding:4px 8px; cursor:pointer;" onclick="toggleTestPhone('${d.district}')">
+              🧪 Test Single Number
+            </button>
           </div>
-          <div class="send-result"></div>
+
+          <div class="test-phone-box" id="test-phone-${d.district}" style="display:none;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Custom phone dispatch test (e.g. your personal mobile):</div>
+            <div class="phone-row">
+              <input class="phone-input" placeholder="98XXXXXXXX (Indian 10-digit)" value="9876543210" />
+              <button class="btn btn-send">Dispatch Test SMS</button>
+            </div>
+            <div class="send-result"></div>
+          </div>
+
+          <div class="send-result district-broadcast-result" id="bcast-result-${d.district}"></div>
         </div>`;
     })
   );
 
   document.getElementById("alertList").innerHTML = cards.length
     ? cards.join("")
-    : `<div class="risk-meta">No districts currently at High or Severe risk. Adjust sliders to test escalation.</div>`;
+    : `<div class="risk-meta">No districts currently at High or Severe risk. Adjust rainfall or soil sliders to test escalation.</div>`;
 
+  // Wire up District Broadcast buttons
+  document.querySelectorAll(".btn-broadcast-district").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const district = btn.dataset.district;
+      const risk = btn.dataset.risk;
+      const resultEl = document.getElementById(`bcast-result-${district}`);
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳</span> Dispatching to ${district} Directory...`;
+
+      try {
+        const res = await apiPost("/api/alerts/broadcast-district", { district, risk, language: lang });
+        btn.disabled = false;
+        btn.innerHTML = `<span>✅</span> Broadcast Dispatched!`;
+        setTimeout(() => {
+          const regCount = (cachedSubscribers[district]?.total_registered || 450).toLocaleString();
+          btn.innerHTML = `<span>📢</span> Broadcast to ${district} Directory (${regCount} Contacts)`;
+        }, 3000);
+
+        if (resultEl) {
+          resultEl.className = "send-result ok";
+          resultEl.textContent = `✅ ${res.detail}`;
+        }
+        loadDispatchLog();
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>❌</span> Broadcast Error`;
+        if (resultEl) {
+          resultEl.className = "send-result err";
+          resultEl.textContent = `Error: ${err.message}`;
+        }
+      }
+    });
+  });
+
+  // Wire up Single Test SMS buttons
   document.querySelectorAll(".btn-send").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const card = btn.closest(".alert-card");
@@ -640,6 +743,133 @@ async function loadAlertsPanel() {
   loadDispatchLog();
 }
 
+function toggleTestPhone(district) {
+  const box = document.getElementById(`test-phone-${district}`);
+  if (box) {
+    box.style.display = box.style.display === "none" ? "block" : "none";
+  }
+}
+window.toggleTestPhone = toggleTestPhone;
+
+function openSubscribersModal() {
+  const modal = document.getElementById("subscribersModal");
+  if (modal) {
+    modal.style.display = "flex";
+    populateSubscribersDirectory();
+  }
+}
+window.openSubscribersModal = openSubscribersModal;
+
+function closeSubscribersModal() {
+  const modal = document.getElementById("subscribersModal");
+  if (modal) modal.style.display = "none";
+}
+window.closeSubscribersModal = closeSubscribersModal;
+
+function switchDirTab(tab) {
+  const btnView = document.getElementById("tabDirView");
+  const btnAdd = document.getElementById("tabDirAdd");
+  const contentPrev = document.getElementById("dirTabContentView");
+  const contentAdd = document.getElementById("dirTabContentAdd");
+
+  if (tab === "view") {
+    btnView.classList.add("active");
+    btnAdd.classList.remove("active");
+    contentPrev.style.display = "block";
+    contentAdd.style.display = "none";
+    populateSubscribersDirectory();
+  } else {
+    btnAdd.classList.add("active");
+    btnView.classList.remove("active");
+    contentPrev.style.display = "none";
+    contentAdd.style.display = "block";
+    const sel = document.getElementById("bulkAddDistrict");
+    if (sel && districtNames.length > 0) {
+      sel.innerHTML = districtNames.map((d) => `<option value="${d}">${d}</option>`).join("");
+    }
+  }
+}
+window.switchDirTab = switchDirTab;
+
+async function populateSubscribersDirectory() {
+  const listEl = document.getElementById("dirDistrictList");
+  if (!listEl) return;
+  try {
+    const data = await api("/api/subscribers");
+    cachedSubscribers = data.districts || {};
+    const countEl = document.getElementById("dirModalCount");
+    if (countEl) countEl.textContent = data.total_districts || Object.keys(cachedSubscribers).length;
+
+    const cards = Object.values(cachedSubscribers).map((dist) => {
+      const groups = (dist.groups || []).map((g) => `<span class="tag-pill">🛡️ ${g}</span>`).join(" ");
+      const samplePhones = (dist.contacts || []).slice(0, 4).map((p) => `<span class="dir-contact-tag">📱 +91 ${p}</span>`).join(" ");
+      return `
+        <div class="dir-district-card">
+          <div class="dir-district-title">
+            <span>${dist.district}, ${dist.state || "NER"}</span>
+            <span class="sub-badge" style="font-size:12px;">👥 ${(dist.total_registered || 0).toLocaleString()} Registered</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin:4px 0;">Language: <b>${dist.primary_language || "English"}</b></div>
+          <div class="tag-group" style="margin:6px 0;">${groups}</div>
+          <div class="dir-contacts-list">${samplePhones} ${dist.contacts && dist.contacts.length > 4 ? `<span style="font-size:10.5px; color:var(--text-muted);">+${dist.contacts.length - 4} more</span>` : ""}</div>
+        </div>
+      `;
+    });
+    listEl.innerHTML = cards.join("");
+  } catch (err) {
+    listEl.innerHTML = `<div class="risk-meta">Failed to load directory: ${err.message}</div>`;
+  }
+}
+window.populateSubscribersDirectory = populateSubscribersDirectory;
+
+async function handleBulkAddSubmit(event) {
+  event.preventDefault();
+  const district = document.getElementById("bulkAddDistrict").value;
+  const group = document.getElementById("bulkAddGroup").value;
+  const rawPhones = document.getElementById("bulkAddPhones").value;
+  const resultEl = document.getElementById("bulkAddResult");
+  const btnSubmit = document.getElementById("btnSubmitBulkAdd");
+
+  const phones = rawPhones
+    .split(/[\n,; ]+/)
+    .map((p) => p.replace(/[^0-9]/g, "").slice(-10))
+    .filter((p) => p.length === 10);
+
+  if (phones.length === 0) {
+    resultEl.style.display = "block";
+    resultEl.className = "send-result err";
+    resultEl.textContent = "Please enter at least one valid 10-digit Indian phone number.";
+    return;
+  }
+
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = "Saving to Database...";
+
+  try {
+    const res = await apiPost("/api/subscribers/bulk-add", {
+      district,
+      group,
+      phones,
+    });
+
+    resultEl.style.display = "block";
+    resultEl.className = "send-result ok";
+    resultEl.innerHTML = `<b>✅ Success:</b> ${res.message} Total contacts in ${district}: ${res.total_registered}.`;
+    document.getElementById("bulkAddPhones").value = "";
+
+    await populateSubscribersDirectory();
+    await loadAlertsPanel();
+  } catch (err) {
+    resultEl.style.display = "block";
+    resultEl.className = "send-result err";
+    resultEl.textContent = `Error: ${err.message}`;
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = "💾 Add Batch to Database";
+  }
+}
+window.handleBulkAddSubmit = handleBulkAddSubmit;
+
 async function loadDispatchLog() {
   const { log } = await api("/api/alerts/log");
   document.getElementById("dispatchLog").innerHTML = log.length
@@ -649,7 +879,7 @@ async function loadDispatchLog() {
           (l) => `
       <div class="report-item">
         <b>${l.district}</b> <span class="ts">${l.timestamp}</span><br>
-        <span style="color:var(--text-muted)">${l.status} &middot; ${l.language} &middot; ${l.phone || "no phone"}</span>
+        <span style="color:var(--text-muted)">${l.status} &middot; ${l.language} &middot; ${l.phone || "no phone"} &middot; ${l.gateway || "Fast2SMS"}</span>
       </div>`
         )
         .join("")
@@ -740,6 +970,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   await initLanguages();
   await loadDashboard();
   loadSensors();
+
+  const btnOpenDir = document.getElementById("btnOpenSubscribersModal");
+  if (btnOpenDir) btnOpenDir.addEventListener("click", openSubscribersModal);
+  const btnCloseDir = document.getElementById("btnCloseSubscribersModal");
+  if (btnCloseDir) btnCloseDir.addEventListener("click", closeSubscribersModal);
+  const modalDir = document.getElementById("subscribersModal");
+  if (modalDir) {
+    modalDir.addEventListener("click", (e) => {
+      if (e.target === modalDir) closeSubscribersModal();
+    });
+  }
 
   // 30s background telemetry refresh
   setInterval(() => {

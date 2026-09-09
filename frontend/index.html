@@ -80,7 +80,10 @@
     <div class="contour-divider"></div>
 
     <div class="control-block">
-      <div class="control-label">Simulation</div>
+      <div class="control-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Simulation</span>
+        <span style="font-size:10px; color:var(--glacier); background:rgba(88,166,255,0.12); padding:1px 6px; border-radius:4px; border:1px solid rgba(88,166,255,0.25);">📡 IMD Base Scaled</span>
+      </div>
       <label class="slider-label">
         Rainfall Intensity <span class="mono" id="rainfallVal">1.0x</span>
       </label>
@@ -91,7 +94,9 @@
       </label>
       <input type="range" id="soilSlider" min="-20" max="40" step="5" value="0">
 
-      <div class="control-hint">Rainfall 2.5x+ pushes districts into Severe risk.</div>
+      <div class="control-hint" style="line-height:1.4;">
+        Scales each district's unique IMD station baseline (e.g. Cherrapunji 50.6mm vs Dimapur 4.2mm) during regional storm events.
+      </div>
     </div>
 
     <div class="control-block">
@@ -286,14 +291,46 @@
 
     <!-- ---------- ALERT DISPATCH ---------- -->
     <section class="panel" id="panel-alerts">
-      <header class="panel-head">
-        <h1>Fast2SMS &mdash; Indian Alert Dispatch</h1>
-        <p class="sub" id="alertModeBanner">Checking Fast2SMS gateway status&hellip;</p>
+      <header class="panel-head" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1>Fast2SMS &mdash; Indian Emergency Alert Dispatch</h1>
+          <p class="sub" id="alertModeBanner">Checking Fast2SMS gateway status&hellip;</p>
+        </div>
+        <button type="button" class="btn btn-secondary" id="btnOpenSubscribersModal" style="display:flex; align-items:center; gap:8px; padding:8px 16px;">
+          <span>👥</span> Emergency Directory & Bulk Import
+        </button>
       </header>
+
+      <!-- Database stats & quick summary -->
+      <div class="directory-summary-bar">
+        <div class="dir-stat-item">
+          <span class="dir-stat-icon">🗄️</span>
+          <div>
+            <div class="dir-stat-label">Central Emergency Registry</div>
+            <div class="dir-stat-val"><span id="totalSubscribersCount">15,912</span> Citizens & Officials</div>
+          </div>
+        </div>
+        <div class="dir-stat-item">
+          <span class="dir-stat-icon">🛡️</span>
+          <div>
+            <div class="dir-stat-label">Coverage Groups</div>
+            <div class="dir-stat-val">DDMA, SDRF, Gaon Burhas, Residents</div>
+          </div>
+        </div>
+        <div class="dir-stat-item">
+          <span class="dir-stat-icon">🌐</span>
+          <div>
+            <div class="dir-stat-label">Local NER Languages</div>
+            <div class="dir-stat-val">9 Regional Dialects Auto-Targeted</div>
+          </div>
+        </div>
+      </div>
 
       <button class="btn-mass-dispatch" id="btnMassBroadcast">
         <span>🚨</span> MASS EMERGENCY BROADCAST &mdash; DISPATCH TO ALL HIGH/SEVERE DISTRICTS
       </button>
+
+      <div id="massBroadcastFeedback" style="display:none; margin: 12px 0; padding: 12px 16px; border-radius: 8px; font-size: 13px;"></div>
 
       <div id="alertList"></div>
 
@@ -452,6 +489,71 @@
       </div>
     </div>
   </div>
+
+  <!-- ============ CENTRAL DIRECTORY & BULK SUBSCRIBER MODAL ============ -->
+  <div class="sos-overlay" id="subscribersModal" style="display:none;">
+    <div class="sos-modal-card" style="max-width: 680px; width: 92%; max-height: 88vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--contour); padding-bottom:12px; margin-bottom:16px;">
+        <div>
+          <h2 style="font-family:var(--font-display); font-size:18px; margin:0; display:flex; align-items:center; gap:8px;">
+            <span>👥</span> Central Emergency Alert Directory
+          </h2>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+            Database of registered citizens, Gaon Burhas (village headmen), DDMA cells, and SDRF rescue personnel.
+          </div>
+        </div>
+        <button type="button" class="chip" id="btnCloseSubscribersModal" style="font-size:16px; padding:2px 8px; cursor:pointer;">&times;</button>
+      </div>
+
+      <!-- Tabs inside modal -->
+      <div class="filter-row" style="margin-bottom:16px;">
+        <button class="chip active" id="tabDirView" onclick="switchDirTab('view')">📋 District Registries (<span id="dirModalCount">16</span>)</button>
+        <button class="chip" id="tabDirAdd" onclick="switchDirTab('add')">➕ Bulk Add / Import Numbers</button>
+      </div>
+
+      <!-- Tab 1: Directory View -->
+      <div id="dirTabContentView">
+        <div id="dirDistrictList" style="display:flex; flex-direction:column; gap:10px; max-height: 380px; overflow-y: auto; padding-right: 4px;"></div>
+      </div>
+
+      <!-- Tab 2: Bulk Add Form -->
+      <div id="dirTabContentAdd" style="display:none;">
+        <form id="bulkAddForm" onsubmit="handleBulkAddSubmit(event)">
+          <div style="margin-bottom:12px;">
+            <label class="field-label">Target District</label>
+            <select id="bulkAddDistrict" class="select" style="width:100%;"></select>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="field-label">Group / Designation</label>
+            <select id="bulkAddGroup" class="select" style="width:100%;">
+              <option value="Registered Hillside Residents" selected>Registered Hillside Residents</option>
+              <option value="Gaon Burhas & Village Headmen">Gaon Burhas & Village Headmen</option>
+              <option value="SDRF & First Responders">SDRF & First Responders</option>
+              <option value="DDMA Emergency Command Cell">DDMA Emergency Command Cell</option>
+              <option value="PWD Highway & Slope Patrol">PWD Highway & Slope Patrol</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="field-label">Indian Mobile Numbers (Paste multiple: comma, space, or line separated)</label>
+            <textarea id="bulkAddPhones" class="sos-input" rows="4" placeholder="9876543210, 9854012345, 9436123456&#10;9774056789&#10;9434011223" required></textarea>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+              Enter 10-digit Indian numbers. Country code (+91) is handled automatically.
+            </div>
+          </div>
+
+          <div id="bulkAddResult" style="display:none; font-size:12.5px; margin-bottom:14px; padding:10px 14px; border-radius:6px;"></div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeSubscribersModal()">Close</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitBulkAdd">💾 Add Batch to Database</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="app.js?v=2.2"></script>
