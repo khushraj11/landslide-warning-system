@@ -69,32 +69,7 @@ ROAD_STATUS_RULES = {
     "Low": ("Open", "No current restrictions."),
 }
 
-ALERT_TEMPLATES = {
-    "English": {
-        "Severe": "SEVERE ALERT: {district} is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.",
-        "High": "HIGH ALERT: {district} shows HIGH landslide risk. Stay alert, avoid unnecessary travel near slopes.",
-        "Moderate": "ADVISORY: {district} shows MODERATE risk. Continue normal activity but stay informed.",
-        "Low": "{district} is currently at LOW risk. No action needed.",
-    },
-    "Hindi": {
-        "Severe": "गंभीर चेतावनी: {district} में भूस्खलन का अत्यधिक खतरा है। तुरंत सुरक्षित स्थान पर जाएं।",
-        "High": "उच्च चेतावनी: {district} में भूस्खलन का उच्च खतरा है। सतर्क रहें।",
-        "Moderate": "सूचना: {district} में मध्यम खतरा है।",
-        "Low": "{district} में फिलहाल कम खतरा है।",
-    },
-    "Assamese": {
-        "Severe": "গুৰুতৰ সতৰ্কবাণী: {district}ত পাহাৰ ধ্বংসৰ অত্যধিক আশংকা আছে।",
-        "High": "উচ্চ সতৰ্কবাণী: {district}ত পাহাৰ ধ্বংসৰ উচ্চ আশংকা আছে।",
-        "Moderate": "জাননী: {district}ত মধ্যম আশংকা আছে।",
-        "Low": "{district}ত বৰ্তমান কম আশংকা আছে।",
-    },
-    "Bengali": {
-        "Severe": "গুরুতর সতর্কতা: {district}-এ ভূমিধসের অত্যন্ত ঝুঁকি রয়েছে।",
-        "High": "উচ্চ সতর্কতা: {district}-এ ভূমিধসের উচ্চ ঝুঁকি রয়েছে।",
-        "Moderate": "পরামর্শ: {district}-এ মাঝারি ঝুঁকি রয়েছে।",
-        "Low": "{district}-এ বর্তমানে ঝুঁকি কম।",
-    },
-}
+from translations import ALERT_TEMPLATES, get_alert
 
 REPORTS_FILE = "data/field_reports.csv"
 LOG_FILE = "data/alert_dispatch_log.csv"
@@ -175,9 +150,7 @@ def get_languages():
 
 @app.get("/api/alert-text")
 def get_alert_text(district: str, risk: str, language: str = "English"):
-    lang_dict = ALERT_TEMPLATES.get(language, ALERT_TEMPLATES["English"])
-    template = lang_dict.get(risk, lang_dict["Low"])
-    return {"message": template.format(district=district)}
+    return {"message": get_alert(district=district, risk_label=risk, language=language)}
 
 
 class FieldReport(BaseModel):
@@ -185,6 +158,8 @@ class FieldReport(BaseModel):
     latitude: float
     longitude: float
     description: str
+    media_url: Optional[str] = None
+    media_type: Optional[str] = "image"
 
 
 URGENT_KEYWORDS = ["crack", "landslide", "slide", "collapse", "block", "flood", "danger", "damage"]
@@ -199,8 +174,13 @@ def submit_field_report(report: FieldReport):
     os.makedirs("data", exist_ok=True)
     row = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "district": report.district, "latitude": report.latitude, "longitude": report.longitude,
-        "description": report.description, "urgency": urgency,
+        "district": report.district,
+        "latitude": report.latitude,
+        "longitude": report.longitude,
+        "description": report.description,
+        "urgency": urgency,
+        "media_type": report.media_type or "image",
+        "media_url": report.media_url or "",
     }
     df = pd.read_csv(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else pd.DataFrame(columns=row.keys())
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
@@ -287,8 +267,7 @@ class AlertSend(BaseModel):
 
 @app.post("/api/alerts/send")
 def send_alert(payload: AlertSend):
-    lang_dict = ALERT_TEMPLATES.get(payload.language, ALERT_TEMPLATES["English"])
-    message = lang_dict.get(payload.risk, lang_dict["Low"]).format(district=payload.district)
+    message = get_alert(payload.district, payload.risk, payload.language)
 
     status, detail = send_fast2sms(payload.phone, message)
 
@@ -316,6 +295,99 @@ def get_alert_log():
         return {"log": []}
     df = pd.read_csv(LOG_FILE).sort_values("timestamp", ascending=False)
     return {"log": df.to_dict(orient="records")}
+
+
+SENSOR_STATIONS_META = [
+    {"sensor_id": "IOT-CHRP-01", "name": "Mawsmai Slope Observatory", "district": "Cherrapunji", "state": "Meghalaya", "lat": 25.2986, "lon": 91.7168, "sensor_type": "Inclinometer + Tensiometer", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-SHL-02", "name": "Barapani NH-6 Escarpment", "district": "Shillong", "state": "Meghalaya", "lat": 25.5788, "lon": 91.8933, "sensor_type": "Piezometer + Crackmeter", "telemetry": "4G/LTE Cellular"},
+    {"sensor_id": "IOT-AIZ-03", "name": "Durtlang Ridge Crest Array", "district": "Aizawl", "state": "Mizoram", "lat": 23.7271, "lon": 92.7176, "sensor_type": "Borehole Inclinometer", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-GGK-04", "name": "9th Mile JN Road Extensometer", "district": "Gangtok", "state": "Sikkim", "lat": 27.3389, "lon": 88.6065, "sensor_type": "Multi-Point Extensometer", "telemetry": "Satellite Telemetry (GSAT)"},
+    {"sensor_id": "IOT-TWG-05", "name": "Sela Pass South Portal Station", "district": "Tawang", "state": "Arunachal Pradesh", "lat": 27.5861, "lon": 91.8653, "sensor_type": "Pore Pressure Transducer", "telemetry": "Satellite Telemetry (GSAT)"},
+    {"sensor_id": "IOT-KHM-06", "name": "Dzukou Escarpment Watch", "district": "Kohima", "state": "Nagaland", "lat": 25.6751, "lon": 94.1086, "sensor_type": "GNSS Slope Displacement Node", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-ITN-07", "name": "Papum Pare Cut Slope", "district": "Itanagar", "state": "Arunachal Pradesh", "lat": 27.0844, "lon": 93.6053, "sensor_type": "Soil Moisture TDR Probe", "telemetry": "4G/LTE Cellular"},
+    {"sensor_id": "IOT-ALG-08", "name": "Siang River Bluffs Array", "district": "Along", "state": "Arunachal Pradesh", "lat": 28.1694, "lon": 94.7981, "sensor_type": "Tiltmeter Array", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-ZRO-09", "name": "Hapoli Ridge Subsurface Node", "district": "Ziro", "state": "Arunachal Pradesh", "lat": 27.5947, "lon": 93.8385, "sensor_type": "Inclinometer + Rain Gauge", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-BMD-10", "name": "Dirang Road Cutting Array", "district": "Bomdila", "state": "Arunachal Pradesh", "lat": 27.2645, "lon": 92.4227, "sensor_type": "Vibrating Wire Piezometer", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-CCP-11", "name": "Tipaimukh Ridge Monitoring Node", "district": "Churachandpur", "state": "Manipur", "lat": 24.3333, "lon": 93.6667, "sensor_type": "Extensometer + Moisture Array", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-IMP-12", "name": "NH-37 Km 42 Slope Sensor", "district": "Imphal", "state": "Manipur", "lat": 24.8170, "lon": 93.9368, "sensor_type": "Acoustic Emission Sensor", "telemetry": "4G/LTE Cellular"},
+    {"sensor_id": "IOT-WKH-13", "name": "Doyang Reservoir Escarpment", "district": "Wokha", "state": "Nagaland", "lat": 26.1000, "lon": 94.2600, "sensor_type": "Tiltmeter + Rain Gauge", "telemetry": "LoRaWAN Mesh (IN865)"},
+    {"sensor_id": "IOT-DMP-14", "name": "Chumukedima Gap Inclinometer", "district": "Dimapur", "state": "Nagaland", "lat": 25.9068, "lon": 93.7273, "sensor_type": "Optical Fiber Strain Sensor", "telemetry": "4G/LTE Cellular"},
+    {"sensor_id": "IOT-GHY-15", "name": "Kamakhya Hillside Array", "district": "Guwahati", "state": "Assam", "lat": 26.1445, "lon": 91.7362, "sensor_type": "Multi-Sensor GeoNode", "telemetry": "4G/LTE Cellular"},
+    {"sensor_id": "IOT-AGT-16", "name": "Baramura Ridge Escarpment", "district": "Agartala", "state": "Tripura", "lat": 23.8315, "lon": 91.2868, "sensor_type": "Surface Crackmeter", "telemetry": "4G/LTE Cellular"},
+]
+
+
+@app.get("/api/sensors")
+def get_sensors(rainfall: float = 1.0, soil: float = 0.0):
+    df = score_risk(rainfall, soil)
+    risk_map = {r["district"]: r for _, r in df.iterrows()}
+
+    sensors = []
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    for s in SENSOR_STATIONS_META:
+        d_risk = risk_map.get(s["district"], {})
+        label = d_risk.get("risk_label", "Low")
+        conf = float(d_risk.get("confidence", 0.75))
+        base_rain = float(d_risk.get("rainfall_mm", 20.0))
+        base_soil = float(d_risk.get("soil_moisture_pct", 45.0))
+
+        # Geological sensor dynamics scaled with risk level
+        if label == "Severe":
+            disp_rate = round(1.8 + conf * 1.5, 2)
+            pore_kpa = round(45.0 + conf * 20.0, 1)
+            tilt = round(3.8 + conf * 2.5, 2)
+            status = "CRITICAL ALERT"
+            breached = True
+        elif label == "High":
+            disp_rate = round(0.7 + conf * 0.8, 2)
+            pore_kpa = round(30.0 + conf * 12.0, 1)
+            tilt = round(1.5 + conf * 1.4, 2)
+            status = "WARNING"
+            breached = True
+        elif label == "Moderate":
+            disp_rate = round(0.2 + conf * 0.3, 2)
+            pore_kpa = round(18.0 + conf * 8.0, 1)
+            tilt = round(0.5 + conf * 0.7, 2)
+            status = "ADVISORY"
+            breached = False
+        else:
+            disp_rate = round(0.02 + conf * 0.05, 2)
+            pore_kpa = round(8.0 + conf * 5.0, 1)
+            tilt = round(0.1 + conf * 0.2, 2)
+            status = "NORMAL"
+            breached = False
+
+        sensors.append({
+            "sensor_id": s["sensor_id"],
+            "name": s["name"],
+            "district": s["district"],
+            "state": s["state"],
+            "latitude": s["lat"],
+            "longitude": s["lon"],
+            "sensor_type": s["sensor_type"],
+            "telemetry": s["telemetry"],
+            "rainfall_1h_mm": round(base_rain / 24.0 * 2.5, 1),
+            "rainfall_24h_mm": round(base_rain, 1),
+            "soil_moisture_pct": round(base_soil, 1),
+            "pore_pressure_kpa": pore_kpa,
+            "displacement_rate_mm_hr": disp_rate,
+            "tilt_angle_deg": tilt,
+            "battery_pct": 92 if s["sensor_id"] != "IOT-ALG-08" else 78,
+            "signal_rssi": -72 if "LoRa" in s["telemetry"] else -65,
+            "status": status,
+            "risk_label": label,
+            "threshold_breached": breached,
+            "last_sync": now_str,
+        })
+
+    return {
+        "sensors": sensors,
+        "total": len(sensors),
+        "online": len(sensors),
+        "alerts_active": sum(1 for x in sensors if x["threshold_breached"]),
+        "highest_displacement": max(s["displacement_rate_mm_hr"] for s in sensors) if sensors else 0.0,
+    }
 
 
 @app.get("/api/health")

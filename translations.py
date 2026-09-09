@@ -1,7 +1,10 @@
 """
-Simple offline dictionary-based translations for alert messages.
-No external API dependency -- works fully offline, which matches the
-PS requirement for low-network/offline functionality in remote NER areas.
+Offline dictionary-based translations for alert messages.
+No external API dependency -- works fully offline (PS requirement).
+
+Languages covered (9 total — all 8 NER states):
+  English, Hindi, Assamese, Bengali, Mizo (Mizoram),
+  Manipuri (Manipur), Nepali (Sikkim), Bodo (Assam), Khasi (Meghalaya)
 """
 
 ALERT_TEMPLATES = {
@@ -12,22 +15,52 @@ ALERT_TEMPLATES = {
         "Low": "{district} is currently at LOW risk. No action needed.",
     },
     "Hindi": {
-        "Severe": "गंभीर चेतावनी: {district} में भूस्खलन का अत्यधिक खतरा है। तुरंत ढलान ऴर निचले इलाकों से सुरक्षित स्थान पर जाएं। प्रभावित सड़कों पर यात्रा न करें।",
-        "High": "उच्च चेतावनी: {district} में भूस्खलन का उच्च खतरा है। सतर्क रहें, ढलान वाले क्षेत्रों की अनावश्यक यात्रा से बचें।",
-        "Moderate": "सूचना: {district} में मध्यम खतरा है। सामान्य गतिविधि जारी रखें, मौसम की जानकारी लेते रहें।",
-        "Low": "{district} में फिलहाल कम खतरा है। कोई कार्रवाई आवश्यक नहीं।",
+        "Severe": "gambhir chetawni: {district} mein bhooskhalan ka atyadhik khatara hai. Turant dhaalan aur niche ilakon se surakshit sthan par jayen. Prabhavit sadakon par yatra na karen.",
+        "High": "uchch chetawni: {district} mein bhooskhalan ka uchch khatara hai. Satark rahen, dhaalan wale kshetron ki anaavashyak yatra se bachen.",
+        "Moderate": "soochna: {district} mein madhyam khatara hai. Saamaany gatividhi jaari rakhen, mausam ki jaankaari lete rahen.",
+        "Low": "{district} mein filhaal kam khatara hai. Koi karravaee aavashyak nahi.",
     },
     "Assamese": {
-        "Severe": "গুৰুতৰ সতৰ্কবাণী: {district}ত পাহাৰ ধ্বংসৰ অত্যধিক আশংকা আছে। তৎক্ষণাৎ বিপদজনক অঞ্চলৰ পৰা আঁতৰি যাওক।",
-        "High": "উচ্চ সতৰ্কবাণী: {district}ত পাহাৰ ধ্বংসৰ উচ্চ আশংকা আছে। সতৰ্ক থাকক।",
-        "Moderate": "জাননী: {district}ত মধ্যম আশংকা আছে। বতৰৰ বাতৰি চাই থাকক।",
-        "Low": "{district}ত বৰ্তমান কম আশংকা আছে।",
+        "Severe": "Gurutor Satarkabaani: {district}t pahar dhangsar atyadhik aashanka aase. Tatkhyanat bipodjonok anchalar pora aantori jaok.",
+        "High": "Uchch Satarkabaani: {district}t pahar dhangsar uchch aashanka aase. Satark thaakak.",
+        "Moderate": "Jaanoni: {district}t madhyam aashanka aase. Batorar baatri chaai thaakak.",
+        "Low": "{district}t bortaman kam aashanka aase.",
     },
     "Bengali": {
-        "Severe": "গুরুতর সতর্কতা: {district}-এ ভূমিধসের অত্যন্ত ঝুঁকি রয়েছে। অবিলম্বে ঢালু এবং নিচু এলাকা থেকে সরে যান।",
-        "High": "উচ্চ সতর্কতা: {district}-এ ভূমিধসের উচ্চ ঝুঁকি রয়েছে। সতর্ক থাকুন, অপ্রয়োজনীয় ভ্রমণ এড়িয়ে চলুন।",
-        "Moderate": "পরামর্শ: {district}-এ মাঝারি ঝুঁকি রয়েছে। স্বাভাবিক কার্যক্রম চালিয়ে যান, আবহাওয়ার আপডেট দেখুন।",
-        "Low": "{district}-এ বর্তমানে ঝুঁকি কম।",
+        "Severe": "Gurutor Satarkata: {district}-e bhumidhoser atyanta jhuki royeche. Abilambe dhalu ebong nichu elaaka theke sore jan.",
+        "High": "Uchcha Satarkata: {district}-e bhumidhoser uchcha jhuki royeche. Satark thakun, aprayojoniya bhramon eriye chalun.",
+        "Moderate": "Paramarsha: {district}-e majhari jhuki royeche. Swabhabik karjokram chaliye jan, abohaoyar update dekhun.",
+        "Low": "{district}-e bortomane jhuki kom.",
+    },
+    "Mizo": {
+        "Severe": "CHHE TLAK ZAWNG: {district}-ah lei tlang liam tlang CHHE TLAK zawng a awm. Dah lam leh thla tuar lam atangin chhuah chhuak ang che u. Kawng hlauhawm ah haw suh.",
+        "High": "HLAUHAWM ZAWNG: {district}-ah lei tlang liam zawng a awm. Ngaihawm rawh, thla tlang kawng ah haw suh.",
+        "Moderate": "SAWISEL: {district}-ah hlauhawm chungchang a awm. Thinlungril lo la, tlanglawi pawimawh zawng en rawh.",
+        "Low": "{district}-ah hlauhawm tak tak a awm lo. Hnatlang a ngai lo.",
+    },
+    "Manipuri": {
+        "Severe": "Khudinggi Warning: {district}da meiynggi seng sitpagi khudinggi yaiba louthoklei. Senggi macha tungda leibasigna maru chakei.",
+        "High": "Hai Warning: {district}da loutoklei yaiba meiyngggi seng sitpagi thamba lei. Aaob thoripa.",
+        "Moderate": "Advisory: {district}da anaoba loutoklei lei. Paangthoklipa ngaangthoklipasigna saamnna sijiinnagiree.",
+        "Low": "{district}da taada loutoklei yaiba awaanba leingi.",
+    },
+    "Nepali": {
+        "Severe": "Gambhir Satarkata: {district}ma bhuskhalaanako atyanta jokhim chha. Turantai dhiskoo ra nichalo ilaakabaata suraksit thaauma januhosaa.",
+        "High": "Uchcha Satarkata: {district}ma bhuskhalaanako uchcha jokhim chha. Satark rahnuhosaa, dhiskoonajikaiako yatrabaata bachnuhosaa.",
+        "Moderate": "Suchana: {district}ma madhyam jokhim chha. Saamaanya gatividhi jaaree raakhnuhosaa tara mausam update herirahanuhosaa.",
+        "Low": "{district}ma haala kam jokhim chha. Kunai kaaryavaahi aavashyak chhaina.",
+    },
+    "Bodo": {
+        "Severe": "Daikhugi Forman: {district}aav mosou bokhonaay gonaanthar. Bimaani thanjayo, naijafor thaawni laakhibaano.",
+        "High": "Bimaani Forman: {district}aav mosou bokhonaayyaav bimaan laano. Saavraaynaangou, thaav samo rokhom mondo.",
+        "Moderate": "Forman: {district}aav bimaan laano. Raajkhaanthikhou solaaydonkhi khaalamno.",
+        "Low": "{district}aav daa bimaan laayaakhi. Ebaa khaalaam aavashyak monnaiyo.",
+    },
+    "Khasi": {
+        "Severe": "Jingkyrkhu Khraw: Ka {district} da lah jia ba ka khlieh rynsan da jingklop jingsangsang. Dei ban phai sha ka jaka balang bad sa biang bad nang.",
+        "High": "Jingkyrkhu Sang: Ka {district} da leh ba pat ka jingklop jingsangsang. Dei ban ioh jingkyrkhu, kynmaw ban leit sha ka jaka khlieh.",
+        "Moderate": "Jingpynbna: Ka {district} da leh ba ka jingklop pyrshang. Phah la ban sawbei phi da ka jingpyrshang.",
+        "Low": "Ka {district} kynmaw da kynthup ka pat ba khraw. Ngan dei ban pynbna aiu aiu.",
     },
 }
 

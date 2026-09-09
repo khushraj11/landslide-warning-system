@@ -50,9 +50,14 @@
       </div>
       <span class="app-brand-badge">CITIZEN</span>
     </div>
-    <div class="network-pill" id="citizenNetworkBadge">
-      <span class="network-dot"></span>
-      <span id="citizenNetworkText">LoRa IN865</span>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <select id="citizenLangSelect" title="Select NER Regional Language" style="font-size:11px; padding:4px 6px; border-radius:12px; background:rgba(255,255,255,0.08); color:var(--c-text); border:1px solid rgba(255,255,255,0.18); cursor:pointer;">
+        <option value="English">English</option>
+      </select>
+      <div class="network-pill" id="citizenNetworkBadge">
+        <span class="network-dot"></span>
+        <span id="citizenNetworkText">LoRa IN865</span>
+      </div>
     </div>
   </header>
 
@@ -364,20 +369,39 @@
     <!-- ==================== TAB 4: REPORT HAZARD ==================== -->
     <section class="tab-panel" id="tab-report">
       <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Report Slope Damage</h2>
-      <p style="font-size: 12px; color: var(--c-muted); margin-bottom: 14px;">Help disaster authorities detect early signs of slope failure. Works offline.</p>
+      <p style="font-size: 12px; color: var(--c-muted); margin-bottom: 14px;">Help disaster authorities detect early signs of slope failure. Works offline via LoRa mesh or cellular.</p>
 
       <div class="action-card">
         <div class="form-group">
           <label class="form-label">Sector / District</label>
           <select id="reportDistrictSelect" class="mobile-select">
-            <option value="Cherrapunji">Cherrapunji</option>
-            <option value="Shillong">Shillong</option>
-            <option value="Aizawl">Aizawl</option>
-            <option value="Gangtok">Gangtok</option>
-            <option value="Tawang">Tawang</option>
-            <option value="Kohima">Kohima</option>
-            <option value="Itanagar">Itanagar</option>
+            <option value="Cherrapunji">Cherrapunji (Meghalaya)</option>
+            <option value="Shillong">Shillong (Meghalaya)</option>
+            <option value="Aizawl">Aizawl (Mizoram)</option>
+            <option value="Gangtok">Gangtok (Sikkim)</option>
+            <option value="Tawang">Tawang (Arunachal)</option>
+            <option value="Kohima">Kohima (Nagaland)</option>
+            <option value="Itanagar">Itanagar (Arunachal)</option>
+            <option value="Along">Along (Arunachal)</option>
+            <option value="Ziro">Ziro (Arunachal)</option>
+            <option value="Bomdila">Bomdila (Arunachal)</option>
+            <option value="Churachandpur">Churachandpur (Manipur)</option>
+            <option value="Imphal">Imphal (Manipur)</option>
+            <option value="Wokha">Wokha (Nagaland)</option>
+            <option value="Dimapur">Dimapur (Nagaland)</option>
+            <option value="Guwahati">Guwahati (Assam)</option>
+            <option value="Agartala">Agartala (Tripura)</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="margin:0;">GPS Geo-Tagging</label>
+            <button type="button" class="chip" id="btnCitizenPinGps" style="padding:2px 8px; font-size:11px; background:rgba(88,166,255,0.15); color:var(--c-accent);" onclick="citizenPinGps()">📍 Pin GPS</button>
+          </div>
+          <div id="citizenGpsDisplay" style="font-size:11px; color:#58a6ff; font-family:var(--font-mono); background:rgba(255,255,255,0.04); padding:6px 10px; border-radius:6px;">
+            📍 Auto-tagging GPS...
+          </div>
         </div>
 
         <div class="form-group">
@@ -386,8 +410,10 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Photo Upload (Simulated Site Capture)</label>
-          <input type="file" id="reportPhotoInput" accept="image/*" class="mobile-input" style="padding:6px;">
+          <label class="form-label">Photo / Video Upload (Geo-Tagged)</label>
+          <input type="file" id="reportPhotoInput" accept="image/*,video/*" class="mobile-input" style="padding:6px;">
+          <img id="citizenPhotoPreview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:6px; margin-top:8px;">
+          <video id="citizenVideoPreview" controls style="display:none; width:100%; max-height:160px; border-radius:6px; margin-top:8px;"></video>
         </div>
 
         <button class="btn-family-sms" style="background:#238636; margin-top:10px;" id="btnSubmitCitizenReport">

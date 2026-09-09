@@ -38,36 +38,90 @@ function initNav() {
       document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
       btn.classList.add("active");
-      document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+      const targetPanel = document.getElementById(`panel-${btn.dataset.tab}`);
+      if (targetPanel) targetPanel.classList.add("active");
       if (btn.dataset.tab === "roads") loadRoads();
       if (btn.dataset.tab === "weather") loadForecast();
       if (btn.dataset.tab === "alerts") loadAlertsPanel();
       if (btn.dataset.tab === "field") loadFieldReports();
+      if (btn.dataset.tab === "sensors") loadSensors();
     });
   });
 }
 
 let nerCorridorsLayer = null;
+let baseLayers = {};
+let hazardLayer = null;
+let isHazardVisible = false;
 
 function initMap() {
   map = L.map("map", { zoomControl: true }).setView([25.8, 92.5], 6);
 
-  const streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  baseLayers.street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
   });
-  const satLayer = L.tileLayer(
+  baseLayers.satellite = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Tiles &copy; Esri" }
-  ).addTo(map);
+    { attribution: "Tiles &copy; Esri World Imagery / Sentinel Satellite Composite" }
+  );
+
+  baseLayers.street.addTo(map);
 
   markersLayer = L.layerGroup().addTo(map);
   nerCorridorsLayer = L.layerGroup().addTo(map);
 
+  // GSI Susceptibility Polygon Overlays for high vulnerability mountain belts
+  hazardLayer = L.layerGroup();
+  const gsiHazardPolygons = [
+    { name: "GSI Very High Susceptibility Zone (Meghalaya Plateau Scarp)", center: [25.30, 91.72], radius: 14000, color: "#e2543f" },
+    { name: "Durtlang Thrust Lineament Zone (Mizoram Flysch Belt)", center: [23.75, 92.73], radius: 11000, color: "#e2543f" },
+    { name: "Main Central Thrust (MCT) High Vulnerability Corridor", center: [27.52, 92.10], radius: 18000, color: "#c9622a" },
+    { name: "Teesta River Valley High Fragility Corridor", center: [27.35, 88.58], radius: 15000, color: "#e2543f" },
+    { name: "Disang Thrust Active Debris Flow Zone", center: [25.68, 94.08], radius: 12000, color: "#c9622a" },
+    { name: "Patkai Range Complex Slip Belt", center: [24.82, 93.94], radius: 14000, color: "#e2543f" },
+  ];
+  gsiHazardPolygons.forEach((z) => {
+    L.circle(z.center, {
+      radius: z.radius,
+      color: z.color,
+      fillColor: z.color,
+      fillOpacity: 0.16,
+      weight: 2,
+      dashArray: "6, 8",
+    }).bindPopup(`<b>${z.name}</b><br><span style="font-size:11px; color:#aaa;">GSI Macro-Zonation Vulnerability Polygon</span>`).addTo(hazardLayer);
+  });
+
   L.control.layers(
-    { "Street Map": streetLayer, "Satellite Imagery": satLayer },
-    { "Stations & Evacuation Buffers": markersLayer, "NER Safe Evacuation Routes": nerCorridorsLayer }
+    { "Street Map": baseLayers.street, "Satellite (Sentinel)": baseLayers.satellite },
+    { "Stations & Evacuation Buffers": markersLayer, "NER Safe Evacuation Routes": nerCorridorsLayer, "GSI Susceptibility Zones": hazardLayer }
   ).addTo(map);
 }
+
+window.setMapBase = function (mode) {
+  if (mode === "satellite") {
+    map.removeLayer(baseLayers.street);
+    map.addLayer(baseLayers.satellite);
+    document.getElementById("btnLayerStreet")?.classList.remove("active");
+    document.getElementById("btnLayerSat")?.classList.add("active");
+  } else {
+    map.removeLayer(baseLayers.satellite);
+    map.addLayer(baseLayers.street);
+    document.getElementById("btnLayerSat")?.classList.remove("active");
+    document.getElementById("btnLayerStreet")?.classList.add("active");
+  }
+};
+
+window.toggleHazardLayer = function () {
+  isHazardVisible = !isHazardVisible;
+  const btn = document.getElementById("btnLayerHazard");
+  if (isHazardVisible) {
+    map.addLayer(hazardLayer);
+    btn?.classList.add("active");
+  } else {
+    map.removeLayer(hazardLayer);
+    btn?.classList.remove("active");
+  }
+};
 
 
 function renderMapMarkers(districts) {
@@ -222,9 +276,10 @@ function initSliders() {
 
 function refreshAll() {
   loadDashboard();
-  const activeTab = document.querySelector(".nav-item.active").dataset.tab;
+  const activeTab = document.querySelector(".nav-item.active")?.dataset.tab;
   if (activeTab === "roads") loadRoads();
   if (activeTab === "alerts") loadAlertsPanel();
+  if (activeTab === "sensors") loadSensors();
 }
 
 let roadFilter = "all";
@@ -236,9 +291,9 @@ async function loadRoads() {
     .join("");
 }
 function initRoadFilters() {
-  document.querySelectorAll(".chip").forEach((chip) => {
+  document.querySelectorAll(".filter-row .chip").forEach((chip) => {
     chip.addEventListener("click", () => {
-      document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      document.querySelectorAll(".filter-row .chip").forEach((c) => c.classList.remove("active"));
       chip.classList.add("active");
       roadFilter = chip.dataset.filter;
       loadRoads();
@@ -307,36 +362,96 @@ function renderForecastChart(rows) {
     .join("");
 }
 
+let currentReportCoords = null;
+
+window.locateFieldUser = function () {
+  const statusEl = document.getElementById("fr-gps-status");
+  if (!navigator.geolocation) {
+    if (statusEl) statusEl.textContent = "📍 Browser geolocation unavailable.";
+    return;
+  }
+  if (statusEl) statusEl.textContent = "📍 Acquiring high-precision GPS...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      currentReportCoords = [pos.coords.latitude, pos.coords.longitude];
+      if (statusEl) {
+        statusEl.textContent = `📍 GPS Fixed: ${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E (±${Math.round(pos.coords.accuracy)}m)`;
+      }
+    },
+    () => {
+      if (statusEl) statusEl.textContent = "📍 GPS fallback: Using district center.";
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+};
+
 function initFieldReport() {
-  document.getElementById("fr-photo").addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    const preview = document.getElementById("fr-preview");
-    if (file) {
-      preview.src = URL.createObjectURL(file);
-      preview.style.display = "block";
-    }
-  });
+  const photoInput = document.getElementById("fr-photo");
+  const imgPreview = document.getElementById("fr-preview");
+  const videoPreview = document.getElementById("fr-video-preview");
 
-  document.getElementById("fieldForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const district = document.getElementById("fr-district").value;
-    const description = document.getElementById("fr-desc").value;
-    const coords = districtCoords(district);
-
-    const result = await apiPost("/api/field-report", {
-      district, latitude: coords[0], longitude: coords[1], description,
+  if (photoInput) {
+    photoInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        if (imgPreview) imgPreview.style.display = "none";
+        if (videoPreview) videoPreview.style.display = "none";
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      if (file.type.startsWith("video/")) {
+        if (imgPreview) imgPreview.style.display = "none";
+        if (videoPreview) {
+          videoPreview.src = url;
+          videoPreview.style.display = "block";
+        }
+      } else {
+        if (videoPreview) videoPreview.style.display = "none";
+        if (imgPreview) {
+          imgPreview.src = url;
+          imgPreview.style.display = "block";
+        }
+      }
     });
+  }
 
-    const box = document.getElementById("fr-result");
-    box.className = `form-result show ${result.urgency === "Urgent" ? "urgent" : "routine"}`;
-    box.textContent =
-      result.urgency === "Urgent"
-        ? `Flagged URGENT (keywords: ${result.keywords_hit.join(", ")}) -- prioritized for dispatch.`
-        : "Submitted and logged for review.";
+  const form = document.getElementById("fieldForm");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const district = document.getElementById("fr-district").value;
+      const description = document.getElementById("fr-desc").value;
+      const coords = currentReportCoords || districtCoords(district);
+      const file = photoInput?.files[0];
+      const mediaType = file && file.type.startsWith("video/") ? "video" : (file ? "image" : null);
 
-    document.getElementById("fr-desc").value = "";
-    loadFieldReports();
-  });
+      const result = await apiPost("/api/field-report", {
+        district,
+        latitude: coords[0],
+        longitude: coords[1],
+        description: description + (currentReportCoords ? ` [GPS: ${coords[0].toFixed(4)}°N, ${coords[1].toFixed(4)}°E]` : ""),
+        media_type: mediaType,
+        media_url: file ? file.name : null,
+      });
+
+      const box = document.getElementById("fr-result");
+      box.className = `form-result show ${result.urgency === "Urgent" ? "urgent" : "routine"}`;
+      box.textContent =
+        result.urgency === "Urgent"
+          ? `Flagged URGENT (keywords: ${result.keywords_hit.join(", ")}) -- prioritized for dispatch.`
+          : `Submitted and logged for review.${file ? ` Attached: ${file.name} (${mediaType})` : ""}`;
+
+      document.getElementById("fr-desc").value = "";
+      if (photoInput) photoInput.value = "";
+      if (imgPreview) imgPreview.style.display = "none";
+      if (videoPreview) videoPreview.style.display = "none";
+      loadFieldReports();
+    });
+  }
+
+  if (navigator.geolocation) {
+    locateFieldUser();
+  }
 }
 
 function districtCoords(name) {
@@ -381,6 +496,17 @@ async function loadFieldReports() {
             channelBadge = `<span class="chip" style="color:#2ecc71; border-color:#2ecc71; background:rgba(46,204,113,0.12); font-size:10px; padding:1px 6px;">🌐 INTERNET DIRECT</span>`;
           }
 
+          let mediaBadge = "";
+          if (r.media_type === "video") {
+            mediaBadge = `<span class="chip" style="color:#c084fc; border-color:#c084fc; background:rgba(192,132,252,0.12); font-size:10px; padding:1px 6px;">🎥 Video Evidence</span>`;
+          } else if (r.media_type === "image" || r.media_url) {
+            mediaBadge = `<span class="chip" style="color:#38bdf8; border-color:#38bdf8; background:rgba(56,189,248,0.12); font-size:10px; padding:1px 6px;">📷 Photo Evidence</span>`;
+          }
+
+          const gpsBadge = (r.latitude && r.longitude)
+            ? `<span class="chip" style="font-size:10px; padding:1px 6px; font-family:var(--font-mono); color:var(--glacier);">📍 ${r.latitude.toFixed(3)}°N, ${r.longitude.toFixed(3)}°E</span>`
+            : "";
+
           return `
       <div class="report-item">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -388,6 +514,8 @@ async function loadFieldReports() {
             <span class="badge ${r.urgency}">${r.urgency}</span>
             <b>${r.district}</b> 
             ${channelBadge}
+            ${mediaBadge}
+            ${gpsBadge}
             <span class="ts">${r.timestamp}</span>
           </div>
           <span class="verify-badge ${status}">${status}</span>
@@ -511,6 +639,62 @@ async function checkHealth() {
   }
 }
 
+async function loadSensors() {
+  try {
+    const data = await api(`/api/sensors?rainfall=${state.rainfall}&soil=${state.soil}`);
+    const sensors = data.sensors || [];
+
+    const elTotal = document.getElementById("sensorCountTotal");
+    const elOnline = document.getElementById("sensorCountOnline");
+    const elAlerts = document.getElementById("sensorCountAlerts");
+    const elPeak = document.getElementById("sensorPeakDisp");
+
+    if (elTotal) elTotal.textContent = data.total || sensors.length;
+    if (elOnline) elOnline.textContent = data.online || sensors.length;
+    if (elAlerts) elAlerts.textContent = data.alerts_active || 0;
+    if (elPeak) elPeak.textContent = `${(data.highest_displacement || 0).toFixed(2)} mm/h`;
+
+    const tbody = document.getElementById("sensorTableBody");
+    if (!tbody) return;
+
+    if (!sensors.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-faint);">No active telemetry</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = sensors
+      .map((s) => {
+        const badgeClass =
+          s.status === "CRITICAL ALERT"
+            ? "CRITICAL"
+            : s.status === "WARNING"
+            ? "WARNING"
+            : s.status === "ADVISORY"
+            ? "ADVISORY"
+            : "NORMAL";
+        const isBreached = s.threshold_breached;
+        return `
+        <tr style="${isBreached ? "background:rgba(226,84,63,0.06);" : ""}">
+          <td class="mono" style="font-weight:700; color:var(--glacier);">${s.sensor_id}</td>
+          <td><b>${s.name}</b><br><span style="font-size:10px; color:var(--text-faint);">${s.latitude.toFixed(3)}°N, ${s.longitude.toFixed(3)}°E</span></td>
+          <td>${s.district}, ${s.state}</td>
+          <td style="color:var(--text-muted); font-size:11px;">${s.sensor_type}</td>
+          <td class="mono">${s.rainfall_1h_mm} mm/h</td>
+          <td class="mono" style="color:${s.soil_moisture_pct > 80 ? "var(--risk-severe)" : "inherit"}; font-weight:${s.soil_moisture_pct > 80 ? "700" : "normal"};">${s.soil_moisture_pct}%</td>
+          <td class="mono">${s.pore_pressure_kpa} kPa</td>
+          <td class="mono" style="color:${s.displacement_rate_mm_hr > 1.0 ? "var(--risk-severe)" : "inherit"}; font-weight:${s.displacement_rate_mm_hr > 1.0 ? "700" : "normal"};">${s.displacement_rate_mm_hr} mm/h</td>
+          <td><span style="font-size:10px; padding:2px 5px; border-radius:3px; background:rgba(255,255,255,0.06); font-family:var(--font-mono);">${s.telemetry}</span></td>
+          <td><span class="sensor-status-badge ${badgeClass}">${s.status}</span></td>
+        </tr>
+      `;
+      })
+      .join("");
+  } catch (err) {
+    console.error("Failed to load sensors:", err);
+  }
+}
+window.loadSensors = loadSensors;
+
 window.addEventListener("DOMContentLoaded", async () => {
   initNav();
   initMap();
@@ -520,4 +704,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   await checkHealth();
   await initLanguages();
   await loadDashboard();
+  loadSensors();
+
+  // 30s background telemetry refresh
+  setInterval(() => {
+    const activeTab = document.querySelector(".nav-item.active")?.dataset.tab;
+    if (activeTab === "sensors") loadSensors();
+  }, 30000);
 });

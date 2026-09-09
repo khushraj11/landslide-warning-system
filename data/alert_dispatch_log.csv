@@ -27,4 +27,5 @@ timestamp,district,risk_label,language,phone,message,status,channel,gateway
 2026-08-30 22:39:57,Cherrapunji,Severe,English,918825151922.0,SEVERE ALERT: Cherrapunji is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Failed,WhatsApp,
 2026-08-30 22:41:00,Aizawl,Severe,English,918825151922.0,SEVERE ALERT: Aizawl is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Failed,WhatsApp,
 2026-09-07 11:57:32,Aizawl,Severe,English,,SEVERE ALERT: Aizawl is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Skipped,,
-2026-09-07 13:58:24,Cherrapunji,Severe,English,9876543210,SEVERE ALERT: Cherrapunji is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Simulated,,Fast2SMS
+2026-09-07 13:58:24,Cherrapunji,Severe,English,9876543210.0,SEVERE ALERT: Cherrapunji is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Simulated,,Fast2SMS
+2026-09-08 19:36:41,Aizawl,Severe,English,9876543210,SEVERE ALERT: Aizawl is at SEVERE landslide risk. Evacuate low-lying and slope-adjacent areas immediately. Avoid travel on affected roads.,Simulated,,Fast2SMS

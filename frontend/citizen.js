@@ -1054,13 +1054,69 @@ async function loadRoadsAndShelters() {
 }
 
 
-// Citizen Hazard Report Submission
+// Citizen Hazard Report Submission with Video & GPS
+let citizenPinnedCoords = null;
+
+function citizenPinGps() {
+  const display = document.getElementById("citizenGpsDisplay");
+  if (!navigator.geolocation) {
+    if (display) display.textContent = "📍 Geolocation not available on device.";
+    return;
+  }
+  if (display) display.textContent = "📍 Acquiring high-accuracy GPS...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      citizenPinnedCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      if (display) {
+        display.textContent = `📍 GPS Fixed: ${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E (±${Math.round(pos.coords.accuracy)}m)`;
+      }
+    },
+    () => {
+      if (display) display.textContent = `📍 Using sector center (${userLocation.lat.toFixed(2)}, ${userLocation.lon.toFixed(2)})`;
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+window.citizenPinGps = citizenPinGps;
+
+// Media input handler (Photo and Video preview)
+const citizenMediaInput = document.getElementById("reportPhotoInput");
+const citizenPhotoPreview = document.getElementById("citizenPhotoPreview");
+const citizenVideoPreview = document.getElementById("citizenVideoPreview");
+
+if (citizenMediaInput) {
+  citizenMediaInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      if (citizenPhotoPreview) citizenPhotoPreview.style.display = "none";
+      if (citizenVideoPreview) citizenVideoPreview.style.display = "none";
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith("video/")) {
+      if (citizenPhotoPreview) citizenPhotoPreview.style.display = "none";
+      if (citizenVideoPreview) {
+        citizenVideoPreview.src = url;
+        citizenVideoPreview.style.display = "block";
+      }
+    } else {
+      if (citizenVideoPreview) citizenVideoPreview.style.display = "none";
+      if (citizenPhotoPreview) {
+        citizenPhotoPreview.src = url;
+        citizenPhotoPreview.style.display = "block";
+      }
+    }
+  });
+}
+
 const btnReport = document.getElementById("btnSubmitCitizenReport");
 if (btnReport) {
   btnReport.addEventListener("click", async () => {
     const district = document.getElementById("reportDistrictSelect").value;
     const desc = document.getElementById("reportDescription").value.trim();
     const statusEl = document.getElementById("reportSubmitStatus");
+    const file = citizenMediaInput?.files[0];
+    const mediaType = file && file.type.startsWith("video/") ? "video" : (file ? "image" : null);
 
     if (!desc) {
       alert("Please enter observation details about the slope or crack.");
@@ -1070,27 +1126,68 @@ if (btnReport) {
     btnReport.disabled = true;
     statusEl.style.display = "block";
     statusEl.style.color = "var(--c-accent)";
-    statusEl.textContent = "Uploading geo-tagged field report...";
+    statusEl.textContent = "Uploading geo-tagged field report with media...";
 
+    const coords = citizenPinnedCoords || userLocation;
     const data = await apiFetch("/api/field-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         district: district,
-        latitude: userLocation.lat,
-        longitude: userLocation.lon,
-        description: desc,
+        latitude: coords.lat,
+        longitude: coords.lon,
+        description: desc + (citizenPinnedCoords ? ` [GPS: ${coords.lat.toFixed(4)}°N, ${coords.lon.toFixed(4)}°E]` : ""),
+        media_type: mediaType,
+        media_url: file ? file.name : null,
       }),
     });
 
     btnReport.disabled = false;
     if (data) {
       statusEl.style.color = "#2ecc71";
-      statusEl.textContent = `Report submitted! Flagged urgency: ${data.urgency}. Transmitted to SDMA.`;
+      statusEl.textContent = `Report submitted! Flagged urgency: ${data.urgency}. Transmitted to SDMA.${file ? ` Attached: ${file.name}` : ""}`;
       document.getElementById("reportDescription").value = "";
+      if (citizenMediaInput) citizenMediaInput.value = "";
+      if (citizenPhotoPreview) citizenPhotoPreview.style.display = "none";
+      if (citizenVideoPreview) citizenVideoPreview.style.display = "none";
     } else {
       statusEl.style.color = "#e67e22";
       statusEl.textContent = "Offline cache: report saved locally and will auto-sync when connected.";
+    }
+  });
+}
+
+// Multilingual Citizen Regional Translations
+const NER_LANGUAGES = [
+  "English", "Hindi", "Assamese", "Bengali", "Mizo", "Manipuri", "Nepali", "Bodo", "Khasi"
+];
+
+async function initCitizenLanguages() {
+  const select = document.getElementById("citizenLangSelect");
+  if (!select) return;
+
+  try {
+    const data = await apiFetch("/api/translations");
+    const langs = (data && data.languages) || NER_LANGUAGES;
+    select.innerHTML = langs.map((l) => `<option value="${l}">${l}</option>`).join("");
+  } catch {
+    select.innerHTML = NER_LANGUAGES.map((l) => `<option value="${l}">${l}</option>`).join("");
+  }
+
+  select.addEventListener("change", async (e) => {
+    const lang = e.target.value;
+    const advisoryEl = document.getElementById("safetyAdvisory");
+    const distName = document.getElementById("nearestDistrictName")?.textContent?.replace(" Sector", "") || "Cherrapunji";
+    const currentRisk = document.getElementById("safetyTitle")?.textContent?.split(" ")[0] || "Moderate";
+
+    if (!advisoryEl) return;
+    try {
+      const res = await apiFetch(`/api/alert-text?district=${encodeURIComponent(distName)}&risk=${encodeURIComponent(currentRisk)}&language=${encodeURIComponent(lang)}`);
+      if (res && res.message) {
+        advisoryEl.textContent = res.message;
+      }
+    } catch {
+      // fallback
     }
   });
 }
@@ -1114,3 +1211,5 @@ if (btnGps) {
 
 // Init
 acquireUserGps();
+citizenPinGps();
+initCitizenLanguages();

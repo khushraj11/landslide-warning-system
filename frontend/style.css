@@ -970,3 +970,32 @@ textarea, .file-input {
 .verify-badge.PENDING { background: rgba(241, 196, 15, 0.2); color: #f1c40f; border: 1px solid #f1c40f; }
 .verify-badge.REJECTED { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; }
 
+/* IoT Sensors Table & Badges */
+.sensor-table th {
+  background: var(--ridge-2);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sensor-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+.sensor-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.sensor-status-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.sensor-status-badge.CRITICAL { background: rgba(226, 84, 63, 0.2); color: var(--risk-severe); border: 1px solid var(--risk-severe); }
+.sensor-status-badge.WARNING { background: rgba(201, 98, 42, 0.2); color: var(--risk-high); border: 1px solid var(--risk-high); }
+.sensor-status-badge.ADVISORY { background: rgba(217, 165, 63, 0.2); color: var(--risk-moderate); border: 1px solid var(--risk-moderate); }
+.sensor-status-badge.NORMAL { background: rgba(95, 179, 179, 0.2); color: var(--risk-low); border: 1px solid var(--risk-low); }
+

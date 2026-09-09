@@ -49,6 +49,9 @@
       <button class="nav-item" data-tab="alerts">
         <span class="nav-idx">05</span> Alert Dispatch
       </button>
+      <button class="nav-item" data-tab="sensors">
+        <span class="nav-idx">06</span> IoT Sensors
+      </button>
     </nav>
 
     <div class="contour-divider"></div>
@@ -139,7 +142,14 @@
 
       <div class="dash-grid">
         <div class="map-card">
-          <div class="card-title">Risk Map <span class="card-hint">satellite / street toggle top-right</span></div>
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span>Risk Map & Satellite GIS</span>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="chip active" id="btnLayerStreet" onclick="setMapBase('street')">🗺️ Street</button>
+              <button type="button" class="chip" id="btnLayerSat" onclick="setMapBase('satellite')">🛰️ Sentinel Sat</button>
+              <button type="button" class="chip" id="btnLayerHazard" onclick="toggleHazardLayer()">📡 GSI Hazard Zones</button>
+            </div>
+          </div>
           <div id="map"></div>
         </div>
         <div class="triage-card">
@@ -183,12 +193,17 @@
           <label class="field-label">District</label>
           <select id="fr-district" class="select"></select>
 
-          <label class="field-label">Photo (preview only)</label>
-          <input type="file" id="fr-photo" accept="image/*" class="file-input">
-          <img id="fr-preview" class="fr-preview" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <label class="field-label" style="margin:0;">Photo / Video Upload (Geo-Tagged)</label>
+            <button type="button" class="chip" id="btnGpsLocate" style="font-size:11px; padding:2px 8px;" onclick="locateFieldUser()">📍 Pin GPS</button>
+          </div>
+          <div id="fr-gps-status" style="font-size:11px; color:var(--glacier); font-family:var(--font-mono); margin:4px 0 8px 0;">📍 GPS: Ready (District centroid default)</div>
+          <input type="file" id="fr-photo" accept="image/*,video/*" class="file-input">
+          <img id="fr-preview" class="fr-preview" style="display:none; max-height:160px; width:100%; object-fit:cover; border-radius:6px; margin:8px 0;">
+          <video id="fr-video-preview" controls class="fr-preview" style="display:none; max-height:160px; width:100%; border-radius:6px; margin:8px 0;"></video>
 
           <label class="field-label">Describe what you observed</label>
-          <textarea id="fr-desc" rows="4" placeholder="Large crack appeared on the hillside near the main road..."></textarea>
+          <textarea id="fr-desc" rows="3" placeholder="Large crack appeared on the hillside near the main road, slope slippage..."></textarea>
 
           <button type="submit" class="btn btn-primary">Submit Report</button>
           <div class="form-result" id="fr-result"></div>
@@ -260,6 +275,67 @@
       <div class="list-card" style="margin-top:20px;">
         <div class="card-title">Fast2SMS Dispatch Log</div>
         <div id="dispatchLog" class="report-list"></div>
+      </div>
+    </section>
+
+    <!-- ---------- IOT SENSORS TELEMETRY ---------- -->
+    <section class="panel" id="panel-sensors">
+      <header class="panel-head" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1>IoT Slope & Telemetry Sensors</h1>
+          <p class="sub">Continuous multi-sensor monitoring arrays (piezometers, inclinometers, extensometers, tiltmeters) deployed across vulnerable NER mountain slopes.</p>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="chip" style="background:rgba(46,204,113,0.15); color:var(--risk-low); border-color:var(--risk-low);">● Telemetry Stream Active</span>
+          <button type="button" class="btn btn-secondary" onclick="loadSensors()" style="padding:6px 12px; font-size:12px;">🔄 Refresh Telemetry</button>
+        </div>
+      </header>
+
+      <div class="metrics-row" style="margin-bottom:16px;">
+        <div class="metric">
+          <div class="metric-label">Total GeoNodes</div>
+          <div class="metric-value mono" id="sensorCountTotal">16</div>
+        </div>
+        <div class="metric" style="color:var(--risk-low);">
+          <div class="metric-label">Online Stations</div>
+          <div class="metric-value mono" id="sensorCountOnline">16</div>
+        </div>
+        <div class="metric" style="color:var(--risk-severe);">
+          <div class="metric-label">Threshold Breaches</div>
+          <div class="metric-value mono" id="sensorCountAlerts">&mdash;</div>
+        </div>
+        <div class="metric" style="color:var(--glacier);">
+          <div class="metric-label">Peak Displacement</div>
+          <div class="metric-value mono" id="sensorPeakDisp">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="list-card">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Live Field Telemetry Array</span>
+          <span class="card-hint">Updated via LoRaWAN IN865 / GSAT Telemetry</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="sensor-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border); text-align:left; color:var(--text-faint);">
+                <th style="padding:8px 10px;">Sensor ID</th>
+                <th style="padding:8px 10px;">Station & Ridge</th>
+                <th style="padding:8px 10px;">District</th>
+                <th style="padding:8px 10px;">Sensor Array</th>
+                <th style="padding:8px 10px;">Rain Rate</th>
+                <th style="padding:8px 10px;">Soil Sat.</th>
+                <th style="padding:8px 10px;">Pore Press.</th>
+                <th style="padding:8px 10px;">Displacement</th>
+                <th style="padding:8px 10px;">Telemetry</th>
+                <th style="padding:8px 10px;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="sensorTableBody">
+              <tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-faint);">Loading sensor telemetry...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
